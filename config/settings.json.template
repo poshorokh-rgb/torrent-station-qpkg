@@ -1,0 +1,33 @@
+{
+    "download-dir": "__DOWNLOAD_DIR__",
+    "incomplete-dir": "__INCOMPLETE_DIR__",
+    "incomplete-dir-enabled": true,
+    "watch-dir": "__WATCH_DIR__",
+    "watch-dir-enabled": true,
+
+    "rpc-enabled": true,
+    "rpc-port": __RPC_PORT__,
+    "rpc-bind-address": "0.0.0.0",
+    "rpc-authentication-required": true,
+    "rpc-username": "__RPC_USER__",
+    "rpc-password": "__RPC_PASS__",
+    "rpc-whitelist-enabled": false,
+    "rpc-host-whitelist-enabled": false,
+
+    "peer-port": 51413,
+    "peer-port-random-on-start": false,
+    "port-forwarding-enabled": false,
+    "dht-enabled": true,
+    "lpd-enabled": true,
+    "pex-enabled": true,
+    "utp-enabled": true,
+    "encryption": 1,
+
+    "speed-limit-down-enabled": false,
+    "speed-limit-up-enabled": false,
+    "ratio-limit-enabled": false,
+
+    "blocklist-enabled": false,
+    "message-level": 2,
+    "umask": 2
+}
