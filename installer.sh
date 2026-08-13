@@ -28,6 +28,8 @@ cp -a "$SRC_DIR/qpkg.cfg" "$QPKG_ROOT/"
 cp -a "$SRC_DIR/shared" "$QPKG_ROOT/"
 cp -a "$SRC_DIR/config" "$QPKG_ROOT/"
 cp -a "$SRC_DIR/icons" "$QPKG_ROOT/"
+rm -rf "$QPKG_ROOT/webui"
+cp -a "$SRC_DIR/webui" "$QPKG_ROOT/"
 chmod 755 "$QPKG_ROOT/shared/TransmissionQ.sh"
 
 # Register with App Center's qpkg.conf if not already present.
@@ -49,7 +51,7 @@ else
     echo "[TransmissionQ] already registered in $QPKG_CONF, skipping"
 fi
 
-echo "[TransmissionQ] starting service"
-"$QPKG_ROOT/shared/TransmissionQ.sh" start
+echo "[TransmissionQ] (re)starting service"
+"$QPKG_ROOT/shared/TransmissionQ.sh" restart
 
 echo "[TransmissionQ] done. Check $QPKG_ROOT/rpc-credentials.txt for the web UI login."

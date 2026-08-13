@@ -11,6 +11,7 @@ OPKG="$OPT/bin/opkg"
 TR_DAEMON="$OPT/bin/transmission-daemon"
 TR_REMOTE="$OPT/bin/transmission-remote"
 
+WEBUI_DIR="$QPKG_ROOT/webui"                # our custom qBittorrent-styled UI
 DATA_DIR="$QPKG_ROOT/data"                 # transmission --config-dir (settings.json, resume, blocklists)
 CONF_FILE="$DATA_DIR/settings.json"
 CONF_TEMPLATE="$QPKG_ROOT/config/settings.json.template"
@@ -35,7 +36,7 @@ ensure_transmission_installed() {
     if [ ! -x "$TR_DAEMON" ]; then
         log "transmission-daemon not found under $OPT, installing via opkg..."
         "$OPKG" update || die "opkg update failed (check NAS internet access)"
-        "$OPKG" install transmission-daemon-openssl || die "opkg install transmission-daemon-openssl failed"
+        "$OPKG" install transmission-daemon transmission-web || die "opkg install transmission-daemon transmission-web failed"
     fi
     [ -x "$TR_DAEMON" ] || die "transmission-daemon still missing after opkg install"
 }
@@ -95,7 +96,8 @@ start() {
         --logfile "$LOG_FILE" \
         --log-info \
         --no-portmap \
-        --port "$RPC_PORT" >> "$LOG_FILE" 2>&1
+        --port "$RPC_PORT" \
+        --web-directory "$WEBUI_DIR" >> "$LOG_FILE" 2>&1
 
     sleep 1
     if is_running; then

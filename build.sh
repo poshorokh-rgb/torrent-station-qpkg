@@ -25,6 +25,7 @@ cp qpkg.cfg "$PAYLOAD_DIR/"
 cp -R shared "$PAYLOAD_DIR/"
 cp -R config "$PAYLOAD_DIR/"
 cp -R icons "$PAYLOAD_DIR/"
+cp -R webui "$PAYLOAD_DIR/"
 cp installer.sh "$PAYLOAD_DIR/"
 chmod +x "$PAYLOAD_DIR/installer.sh" "$PAYLOAD_DIR/shared/${QPKG_SERVICE_PROGRAM}"
 
