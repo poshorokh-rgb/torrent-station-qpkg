@@ -554,9 +554,24 @@ td.name-cell .fname {
 .mbtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .mbtn.tiny { padding: 5px 10px; font-size: 11px; }
 
-/* ---- Details modal ---- */
-.modal-lg { width: 680px; }
-.modal-body-lg { padding: 20px; max-height: 62vh; overflow-y: auto; }
+/* ---- Details panel — docked to the bottom of the screen, above the status bar ---- */
+.details-panel {
+  position: fixed;
+  left: 0; right: 0; bottom: var(--statusbar-h);
+  height: 0;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line-bright);
+  box-shadow: 0 -24px 60px -20px rgba(0, 0, 0, 0.45);
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  transition: height 0.25s cubic-bezier(.16,1,.3,1);
+}
+.details-panel.show { height: min(46vh, 440px); }
+.details-panel .modal-head { flex-shrink: 0; }
+.details-panel .modal-tabs { flex-shrink: 0; }
+.modal-body-lg { padding: 20px; flex: 1; min-height: 0; overflow-y: auto; }
 
 .detail-grid {
   display: grid;

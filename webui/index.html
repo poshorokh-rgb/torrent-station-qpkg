@@ -14,7 +14,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
 <div class="grain"></div>
@@ -150,26 +150,24 @@
   </div>
 </div>
 
-<!-- ============ DETAILS MODAL ============ -->
-<div class="modal-overlay" id="modal-details">
-  <div class="modal modal-lg">
-    <div class="modal-head">
-      <h2 id="details-title" data-i18n="details_title">Детали торрента</h2>
-      <div class="modal-close" id="details-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
-    </div>
-    <div class="modal-tabs">
-      <div class="modal-tab active" data-dtab="general" data-i18n="details_tab_general">Обзор</div>
-      <div class="modal-tab" data-dtab="files" data-i18n="details_tab_files">Файлы</div>
-    </div>
-    <div class="modal-body modal-body-lg">
-      <div class="modal-pane active" data-dpane="general" id="details-general"></div>
-      <div class="modal-pane" data-dpane="files" id="details-files">
-        <div class="files-head">
-          <button class="mbtn tiny" id="files-select-all" data-i18n="details_select_all">Выбрать все</button>
-          <button class="mbtn tiny" id="files-select-none" data-i18n="details_select_none">Снять всё</button>
-        </div>
-        <div class="file-rows" id="file-rows"></div>
+<!-- ============ DETAILS PANEL (bottom-docked) ============ -->
+<div class="details-panel" id="modal-details">
+  <div class="modal-head">
+    <h2 id="details-title" data-i18n="details_title">Детали торрента</h2>
+    <div class="modal-close" id="details-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+  </div>
+  <div class="modal-tabs">
+    <div class="modal-tab" data-dtab="general" data-i18n="details_tab_general">Обзор</div>
+    <div class="modal-tab active" data-dtab="files" data-i18n="details_tab_files">Файлы</div>
+  </div>
+  <div class="modal-body modal-body-lg">
+    <div class="modal-pane" data-dpane="general" id="details-general"></div>
+    <div class="modal-pane active" data-dpane="files" id="details-files">
+      <div class="files-head">
+        <button class="mbtn tiny" id="files-select-all" data-i18n="details_select_all">Выбрать все</button>
+        <button class="mbtn tiny" id="files-select-none" data-i18n="details_select_none">Снять всё</button>
       </div>
+      <div class="file-rows" id="file-rows"></div>
     </div>
   </div>
 </div>
@@ -241,8 +239,8 @@
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
-<script src="theme.js?v=9"></script>
-<script src="i18n.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="theme.js?v=10"></script>
+<script src="i18n.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

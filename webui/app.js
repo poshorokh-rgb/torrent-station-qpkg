@@ -319,6 +319,7 @@ els.body.addEventListener("click", (e) => {
     selected.has(id) ? selected.delete(id) : selected.add(id);
   } else {
     selected = new Set([id]);
+    openDetails(id);
   }
   lastClickedId = id;
   renderTable();
@@ -418,12 +419,6 @@ ctxMenu.addEventListener("click", (e) => {
   else if (action === "pause") act("torrent-stop");
   else if (action === "remove") confirmRemove(false);
   else if (action === "remove-data") confirmRemove(true);
-});
-
-els.body.addEventListener("dblclick", (e) => {
-  const tr = e.target.closest("tr[data-id]");
-  if (!tr) return;
-  openDetails(Number(tr.dataset.id));
 });
 
 /* ==========================================================================
@@ -544,13 +539,19 @@ const DETAIL_FIELDS = [
 let currentDetailsId = null;
 let detailsTimer = null;
 
+// While a priority <select> is open/focused, skip the periodic refresh —
+// replacing the file rows out from under an open native dropdown can
+// silently drop the user's in-progress selection.
+let fileSelectFocused = false;
+
 function openDetails(id) {
   if (id == null) return;
   currentDetailsId = id;
-  switchDetailsTab("general");
+  switchDetailsTab("files");
   modalDetails.classList.add("show");
   fetchDetails();
-  detailsTimer = setInterval(fetchDetails, 3000);
+  if (detailsTimer) clearInterval(detailsTimer);
+  detailsTimer = setInterval(() => { if (!fileSelectFocused) fetchDetails(); }, 3000);
 }
 
 function closeDetails() {
@@ -680,13 +681,15 @@ modalDetails.querySelectorAll(".modal-tab").forEach((tabEl) => {
 });
 
 document.getElementById("details-close").addEventListener("click", closeDetails);
-modalDetails.addEventListener("click", (e) => { if (e.target === modalDetails) closeDetails(); });
 
 fileRowsEl.addEventListener("change", (e) => {
   const sel = e.target.closest("select[data-idx]");
   if (!sel) return;
   setFilePriority(Number(sel.dataset.idx), sel.value);
 });
+
+fileRowsEl.addEventListener("focusin", (e) => { if (e.target.tagName === "SELECT") fileSelectFocused = true; });
+fileRowsEl.addEventListener("focusout", (e) => { if (e.target.tagName === "SELECT") fileSelectFocused = false; });
 
 document.getElementById("files-select-all").addEventListener("click", () => setAllFiles(true));
 document.getElementById("files-select-none").addEventListener("click", () => setAllFiles(false));
