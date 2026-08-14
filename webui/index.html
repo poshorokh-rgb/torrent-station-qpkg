@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TransmissionQ</title>
+<title>Torrent Station</title>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,21 +12,25 @@
 <!-- ============ LOGIN ============ -->
 <div id="login-screen">
   <form class="login-panel" id="login-form" autocomplete="off">
+    <div class="lang-switch lang-switch-login">
+      <button class="lang-btn" data-lang="ru">RU</button>
+      <button class="lang-btn" data-lang="en">EN</button>
+    </div>
     <div class="login-mark">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-      <span class="wordmark">Transmission<span>Q</span></span>
+      <span class="wordmark">Torrent<span>Station</span></span>
     </div>
-    <div class="login-sub">Панель управления — вход</div>
+    <div class="login-sub" data-i18n="login_sub">Панель управления — вход</div>
     <div class="field">
-      <label for="f-user">Логин</label>
+      <label for="f-user" data-i18n="login_user">Логин</label>
       <input id="f-user" type="text" autocomplete="username" required>
     </div>
     <div class="field">
-      <label for="f-pass">Пароль</label>
+      <label for="f-pass" data-i18n="login_pass">Пароль</label>
       <input id="f-pass" type="password" autocomplete="current-password" required>
     </div>
-    <button class="login-btn" type="submit">Войти</button>
-    <div class="login-error" id="login-error"><span class="login-blink"></span><span id="login-error-text">Неверный логин или пароль</span></div>
+    <button class="login-btn" type="submit" data-i18n="login_submit">Войти</button>
+    <div class="login-error" id="login-error"><span class="login-blink"></span><span id="login-error-text" data-i18n="login_error">Неверный логин или пароль</span></div>
   </form>
 </div>
 
@@ -35,33 +39,37 @@
   <div class="topbar">
     <div class="brand">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-      <span class="wordmark">Transmission<span>Q</span></span>
+      <span class="wordmark">Torrent<span>Station</span></span>
     </div>
     <div class="toolbar">
       <button class="tbtn primary" id="btn-add">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-        Добавить
+        <span data-i18n="tb_add">Добавить</span>
       </button>
       <button class="tbtn" id="btn-resume" disabled>
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg>
-        Старт
+        <span data-i18n="tb_start">Старт</span>
       </button>
       <button class="tbtn" id="btn-pause" disabled>
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
-        Пауза
+        <span data-i18n="tb_pause">Пауза</span>
       </button>
       <button class="tbtn danger" id="btn-remove" disabled>
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Удалить
+        <span data-i18n="tb_remove">Удалить</span>
       </button>
     </div>
     <div class="topbar-spacer"></div>
     <div class="search-box">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <input type="text" id="search" placeholder="Поиск по имени…">
+      <input type="text" id="search" data-i18n-placeholder="search_ph" placeholder="Поиск по имени…">
+    </div>
+    <div class="lang-switch">
+      <button class="lang-btn" data-lang="ru">RU</button>
+      <button class="lang-btn" data-lang="en">EN</button>
     </div>
     <div class="session-info">
-      <button class="logout-btn" id="btn-logout" title="Выйти">
+      <button class="logout-btn" id="btn-logout" data-i18n-title="logout_title" title="Выйти">
         <svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
     </div>
@@ -69,47 +77,47 @@
 
   <div class="body-row">
     <div class="sidebar" id="sidebar">
-      <div class="sidebar-label">Статус</div>
-      <div class="sidebar-item active" data-filter="all"><span class="name"><span class="dot all"></span>Все</span><span class="count" id="cnt-all">0</span></div>
-      <div class="sidebar-item" data-filter="downloading"><span class="name"><span class="dot down"></span>Загрузка</span><span class="count" id="cnt-downloading">0</span></div>
-      <div class="sidebar-item" data-filter="seeding"><span class="name"><span class="dot seed"></span>Раздача</span><span class="count" id="cnt-seeding">0</span></div>
-      <div class="sidebar-item" data-filter="active"><span class="name"><span class="dot active"></span>Активные</span><span class="count" id="cnt-active">0</span></div>
-      <div class="sidebar-item" data-filter="paused"><span class="name"><span class="dot paused"></span>На паузе</span><span class="count" id="cnt-paused">0</span></div>
-      <div class="sidebar-item" data-filter="checking"><span class="name"><span class="dot check"></span>Проверка</span><span class="count" id="cnt-checking">0</span></div>
-      <div class="sidebar-item" data-filter="completed"><span class="name"><span class="dot seed"></span>Завершено</span><span class="count" id="cnt-completed">0</span></div>
-      <div class="sidebar-item" data-filter="error"><span class="name"><span class="dot error"></span>Ошибки</span><span class="count" id="cnt-error">0</span></div>
+      <div class="sidebar-label" data-i18n="sb_status">Статус</div>
+      <div class="sidebar-item active" data-filter="all"><span class="name"><span class="dot all"></span><span data-i18n="sb_all">Все</span></span><span class="count" id="cnt-all">0</span></div>
+      <div class="sidebar-item" data-filter="downloading"><span class="name"><span class="dot down"></span><span data-i18n="sb_downloading">Загрузка</span></span><span class="count" id="cnt-downloading">0</span></div>
+      <div class="sidebar-item" data-filter="seeding"><span class="name"><span class="dot seed"></span><span data-i18n="sb_seeding">Раздача</span></span><span class="count" id="cnt-seeding">0</span></div>
+      <div class="sidebar-item" data-filter="active"><span class="name"><span class="dot active"></span><span data-i18n="sb_active">Активные</span></span><span class="count" id="cnt-active">0</span></div>
+      <div class="sidebar-item" data-filter="paused"><span class="name"><span class="dot paused"></span><span data-i18n="sb_paused">На паузе</span></span><span class="count" id="cnt-paused">0</span></div>
+      <div class="sidebar-item" data-filter="checking"><span class="name"><span class="dot check"></span><span data-i18n="sb_checking">Проверка</span></span><span class="count" id="cnt-checking">0</span></div>
+      <div class="sidebar-item" data-filter="completed"><span class="name"><span class="dot seed"></span><span data-i18n="sb_completed">Завершено</span></span><span class="count" id="cnt-completed">0</span></div>
+      <div class="sidebar-item" data-filter="error"><span class="name"><span class="dot error"></span><span data-i18n="sb_error">Ошибки</span></span><span class="count" id="cnt-error">0</span></div>
       <div class="sidebar-divider"></div>
-      <div class="sidebar-label">Хранилище</div>
-      <div class="sidebar-item" style="cursor:default" id="free-space"><span class="name">Свободно</span><span class="count">—</span></div>
+      <div class="sidebar-label" data-i18n="sb_storage">Хранилище</div>
+      <div class="sidebar-item" style="cursor:default" id="free-space"><span class="name"><span data-i18n="sb_free">Свободно</span></span><span class="count">—</span></div>
     </div>
 
     <div class="table-wrap" id="table-wrap">
       <table class="torrents">
         <thead>
           <tr>
-            <th data-sort="name" style="width:36%">Имя <span class="arrow"></span></th>
-            <th data-sort="size" class="num">Размер <span class="arrow"></span></th>
-            <th data-sort="progress">Прогресс <span class="arrow"></span></th>
-            <th data-sort="status">Статус <span class="arrow"></span></th>
-            <th data-sort="down" class="num">↓ Скорость <span class="arrow"></span></th>
-            <th data-sort="up" class="num">↑ Скорость <span class="arrow"></span></th>
-            <th data-sort="eta" class="num">Осталось <span class="arrow"></span></th>
-            <th data-sort="ratio" class="num">Рейтинг <span class="arrow"></span></th>
-            <th data-sort="peers" class="num">Пиры <span class="arrow"></span></th>
+            <th data-sort="name" style="width:36%"><span data-i18n="col_name">Имя</span> <span class="arrow"></span></th>
+            <th data-sort="size" class="num"><span data-i18n="col_size">Размер</span> <span class="arrow"></span></th>
+            <th data-sort="progress"><span data-i18n="col_progress">Прогресс</span> <span class="arrow"></span></th>
+            <th data-sort="status"><span data-i18n="col_status">Статус</span> <span class="arrow"></span></th>
+            <th data-sort="down" class="num"><span data-i18n="col_down">↓ Скорость</span> <span class="arrow"></span></th>
+            <th data-sort="up" class="num"><span data-i18n="col_up">↑ Скорость</span> <span class="arrow"></span></th>
+            <th data-sort="eta" class="num"><span data-i18n="col_eta">Осталось</span> <span class="arrow"></span></th>
+            <th data-sort="ratio" class="num"><span data-i18n="col_ratio">Рейтинг</span> <span class="arrow"></span></th>
+            <th data-sort="peers" class="num"><span data-i18n="col_peers">Пиры</span> <span class="arrow"></span></th>
           </tr>
         </thead>
         <tbody id="torrent-body"></tbody>
       </table>
       <div class="empty-state" id="empty-state" style="display:none">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.4"/><path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div class="t1">Пусто</div>
-        <div class="t2">Добавьте торрент по ссылке-magnet или .torrent-файлом</div>
+        <div class="t1" data-i18n="empty_t1">Пусто</div>
+        <div class="t2" data-i18n="empty_t2">Добавьте торрент по ссылке-magnet или .torrent-файлом</div>
       </div>
     </div>
   </div>
 
   <div class="statusbar">
-    <div class="conn-indicator"><span class="conn-dot" id="conn-dot"></span><span id="conn-text">Подключено</span></div>
+    <div class="conn-indicator"><span class="conn-dot" id="conn-dot"></span><span id="conn-text" data-i18n="conn_ok">Подключено</span></div>
     <div class="sep"></div>
     <div class="stat-group">
       <svg viewBox="0 0 24 24" fill="none" style="color:var(--amber)"><path d="M12 4v12M6 10l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -120,7 +128,7 @@
       <span class="val" id="stat-up">0 Б/с</span>
     </div>
     <div class="sep"></div>
-    <div class="stat-group"><span>Всего:</span><span class="val" id="stat-count">0</span></div>
+    <div class="stat-group"><span data-i18n="stat_total">Всего:</span><span class="val" id="stat-count">0</span></div>
     <div class="statusbar-spacer"></div>
     <div class="stat-group"><span id="stat-version">Transmission</span></div>
   </div>
@@ -130,45 +138,46 @@
 <div class="modal-overlay" id="modal-add">
   <div class="modal">
     <div class="modal-head">
-      <h2>Добавить торрент</h2>
+      <h2 data-i18n="modal_title">Добавить торрент</h2>
       <div class="modal-close" id="modal-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
     </div>
     <div class="modal-tabs">
-      <div class="modal-tab active" data-tab="link">Ссылка / Magnet</div>
-      <div class="modal-tab" data-tab="file">Файл .torrent</div>
+      <div class="modal-tab active" data-tab="link" data-i18n="tab_link">Ссылка / Magnet</div>
+      <div class="modal-tab" data-tab="file" data-i18n="tab_file">Файл .torrent</div>
     </div>
     <div class="modal-body">
       <div class="modal-pane active" data-pane="link">
-        <textarea id="magnet-input" placeholder="magnet:?xt=urn:btih:…&#10;можно несколько ссылок, каждая с новой строки"></textarea>
+        <textarea id="magnet-input" data-i18n-placeholder="magnet_ph" placeholder="magnet:?xt=urn:btih:…&#10;можно несколько ссылок, каждая с новой строки"></textarea>
       </div>
       <div class="modal-pane" data-pane="file">
         <div class="dropzone" id="dropzone">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 16V4M8 8l4-4 4 4M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          <div>Перетащите .torrent файл(ы) сюда<br>или нажмите, чтобы выбрать</div>
+          <div data-i18n-html="dropzone">Перетащите .torrent файл(ы) сюда<br>или нажмите, чтобы выбрать</div>
         </div>
         <input type="file" id="file-input" accept=".torrent" multiple style="display:none">
         <div class="file-list" id="file-list"></div>
       </div>
-      <label class="checkbox-row"><input type="checkbox" id="start-paused"> Добавить на паузе</label>
+      <label class="checkbox-row"><input type="checkbox" id="start-paused"> <span data-i18n="start_paused">Добавить на паузе</span></label>
     </div>
     <div class="modal-foot">
-      <button class="mbtn" id="modal-cancel">Отмена</button>
-      <button class="mbtn primary" id="modal-submit">Добавить</button>
+      <button class="mbtn" id="modal-cancel" data-i18n="modal_cancel">Отмена</button>
+      <button class="mbtn primary" id="modal-submit" data-i18n="modal_submit">Добавить</button>
     </div>
   </div>
 </div>
 
 <!-- ============ CONTEXT MENU ============ -->
 <div class="ctx-menu" id="ctx-menu">
-  <div class="ctx-item" data-action="resume"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg>Старт</div>
-  <div class="ctx-item" data-action="pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>Пауза</div>
+  <div class="ctx-item" data-action="resume"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg><span data-i18n="ctx_start">Старт</span></div>
+  <div class="ctx-item" data-action="pause"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg><span data-i18n="ctx_pause">Пауза</span></div>
   <div class="ctx-sep"></div>
-  <div class="ctx-item danger" data-action="remove"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Удалить из списка</div>
-  <div class="ctx-item danger" data-action="remove-data"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Удалить с диска</div>
+  <div class="ctx-item danger" data-action="remove"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="ctx_remove">Удалить из списка</span></div>
+  <div class="ctx-item danger" data-action="remove-data"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="ctx_remove_data">Удалить с диска</span></div>
 </div>
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

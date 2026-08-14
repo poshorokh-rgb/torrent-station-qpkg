@@ -337,6 +337,32 @@ input { font-family: inherit; font-size: inherit; color: inherit; }
 .search-box input:focus { outline: none; }
 .search-box input::placeholder { color: var(--text-faint); }
 
+/* ---- Language switch ---- */
+.lang-switch {
+  display: flex; align-items: center;
+  background: var(--bg-void);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 2px;
+  gap: 2px;
+}
+.lang-btn {
+  border: none; background: transparent; cursor: pointer;
+  padding: 6px 9px; font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  border-radius: 2px;
+  transition: all 0.12s;
+}
+.lang-btn:hover { color: var(--text-mid); }
+.lang-btn.active { background: var(--bg-raised); color: var(--amber); }
+
+.lang-switch-login {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
 .session-info { display: flex; align-items: center; gap: 12px; }
 .logout-btn {
   width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;

@@ -1,9 +1,9 @@
 #!/bin/sh
 # Runs ON THE NAS after makeself extracts the payload to a temp dir.
-# Installs TransmissionQ into the .qpkg tree and registers it in qpkg.conf.
+# Installs TorrentStation into the .qpkg tree and registers it in qpkg.conf.
 set -e
 
-QPKG_NAME="TransmissionQ"
+QPKG_NAME="TorrentStation"
 SRC_DIR="$(pwd)"     # makeself cd's here before running us; payload files are here
 QPKG_CONF="/etc/config/qpkg.conf"
 
@@ -18,10 +18,10 @@ detect_volume() {
 }
 
 VOL="$(detect_volume)"
-[ -n "$VOL" ] || { echo "[TransmissionQ] ERROR: could not detect data volume under /share"; exit 1; }
+[ -n "$VOL" ] || { echo "[TorrentStation] ERROR: could not detect data volume under /share"; exit 1; }
 
 QPKG_ROOT="$VOL/.qpkg/$QPKG_NAME"
-echo "[TransmissionQ] installing into $QPKG_ROOT"
+echo "[TorrentStation] installing into $QPKG_ROOT"
 
 mkdir -p "$QPKG_ROOT"
 cp -a "$SRC_DIR/qpkg.cfg" "$QPKG_ROOT/"
@@ -30,11 +30,11 @@ cp -a "$SRC_DIR/config" "$QPKG_ROOT/"
 cp -a "$SRC_DIR/icons" "$QPKG_ROOT/"
 rm -rf "$QPKG_ROOT/webui"
 cp -a "$SRC_DIR/webui" "$QPKG_ROOT/"
-chmod 755 "$QPKG_ROOT/shared/TransmissionQ.sh"
+chmod 755 "$QPKG_ROOT/shared/TorrentStation.sh"
 
 # Register with App Center's qpkg.conf if not already present.
 if ! grep -q "^\[$QPKG_NAME\]" "$QPKG_CONF" 2>/dev/null; then
-    echo "[TransmissionQ] registering in $QPKG_CONF"
+    echo "[TorrentStation] registering in $QPKG_CONF"
     {
         echo ""
         echo "[$QPKG_NAME]"
@@ -44,14 +44,14 @@ if ! grep -q "^\[$QPKG_NAME\]" "$QPKG_CONF" 2>/dev/null; then
         echo "Install_Path = $QPKG_ROOT"
         echo "Install_Date = $(date '+%Y-%m-%d %H:%M:%S')"
         echo "Enable = TRUE"
-        echo "Shell = $QPKG_ROOT/shared/TransmissionQ.sh"
+        echo "Shell = $QPKG_ROOT/shared/TorrentStation.sh"
         echo "RC_Number = 150"
     } >> "$QPKG_CONF"
 else
-    echo "[TransmissionQ] already registered in $QPKG_CONF, skipping"
+    echo "[TorrentStation] already registered in $QPKG_CONF, skipping"
 fi
 
-echo "[TransmissionQ] (re)starting service"
-"$QPKG_ROOT/shared/TransmissionQ.sh" restart
+echo "[TorrentStation] (re)starting service"
+"$QPKG_ROOT/shared/TorrentStation.sh" restart
 
-echo "[TransmissionQ] done. Check $QPKG_ROOT/rpc-credentials.txt for the web UI login."
+echo "[TorrentStation] done. Check $QPKG_ROOT/rpc-credentials.txt for the web UI login."

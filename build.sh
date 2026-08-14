@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds TransmissionQ_<ver>_<arch>.qpkg — a self-extracting installer
+# Builds TorrentStation_<ver>_<arch>.qpkg — a self-extracting installer
 # (via makeself) that App Center's "Install Manually" accepts.
 set -e
 

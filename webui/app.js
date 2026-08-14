@@ -96,49 +96,39 @@ if (sessionStorage.getItem(AUTH_KEY)) {
    FORMATTERS
    ========================================================================== */
 function fmtBytes(n) {
-  if (n === 0 || n == null) return "0 Б";
-  const units = ["Б", "КБ", "МБ", "ГБ", "ТБ"];
+  if (n === 0 || n == null) return "0 " + t("unit_b");
+  const units = [t("unit_b"), t("unit_kb"), t("unit_mb"), t("unit_gb"), t("unit_tb")];
   const i = Math.min(units.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
   return (n / Math.pow(1024, i)).toFixed(i === 0 ? 0 : 1) + " " + units[i];
 }
 function fmtRate(n) {
-  if (!n) return "0 Б/с";
-  return fmtBytes(n) + "/с";
+  if (!n) return "0 " + t("unit_b") + t("per_sec");
+  return fmtBytes(n) + t("per_sec");
 }
 function fmtEta(s) {
-  if (s === -1 || s == null) return "∞";
-  if (s === -2) return "—";
-  if (s < 60) return s + "с";
-  if (s < 3600) return Math.floor(s / 60) + "м";
-  if (s < 86400) return Math.floor(s / 3600) + "ч " + Math.floor((s % 3600) / 60) + "м";
-  return Math.floor(s / 86400) + "д " + Math.floor((s % 86400) / 3600) + "ч";
+  if (s === -1 || s == null) return t("eta_inf");
+  if (s === -2) return t("eta_dash");
+  if (s < 60) return s + t("eta_s");
+  if (s < 3600) return Math.floor(s / 60) + t("eta_m");
+  if (s < 86400) return Math.floor(s / 3600) + t("eta_h") + " " + Math.floor((s % 3600) / 60) + t("eta_m");
+  return Math.floor(s / 86400) + t("eta_d") + " " + Math.floor((s % 86400) / 3600) + t("eta_h");
 }
 function fmtRatio(r) {
-  if (r === -1) return "∞";
+  if (r === -1) return t("ratio_inf");
   return r.toFixed(2);
 }
 
 /* status: 0=stopped 1=check-wait 2=checking 3=dl-wait 4=downloading 5=seed-wait 6=seeding */
-const STATUS_META = {
-  0: { label: "Пауза", dot: "paused" },
-  1: { label: "Ожидает проверки", dot: "check" },
-  2: { label: "Проверка", dot: "check" },
-  3: { label: "Ожидает загрузки", dot: "down" },
-  4: { label: "Загрузка", dot: "down" },
-  5: { label: "Ожидает раздачи", dot: "seed" },
-  6: { label: "Раздача", dot: "seed" },
-};
-
-function category(t) {
-  if (t.error && t.error !== 0) return "error";
-  if (t.status === 0) return "paused";
-  if (t.status === 1 || t.status === 2) return "checking";
-  if (t.percentDone >= 1 && (t.status === 0 || t.status === 6 || t.status === 5)) {
-    // completed bucket is a superset check applied separately below
-  }
-  if (t.status === 4) return "downloading";
-  if (t.status === 6) return "seeding";
-  return "other";
+function statusMeta(status) {
+  return {
+    0: { label: t("st_paused"), dot: "paused" },
+    1: { label: t("st_check_wait"), dot: "check" },
+    2: { label: t("st_checking"), dot: "check" },
+    3: { label: t("st_dl_wait"), dot: "down" },
+    4: { label: t("st_downloading"), dot: "down" },
+    5: { label: t("st_seed_wait"), dot: "seed" },
+    6: { label: t("st_seeding"), dot: "seed" },
+  }[status] || { label: "?", dot: "paused" };
 }
 
 /* ==========================================================================
@@ -152,6 +142,8 @@ let sortKey = "name";
 let sortDir = 1;
 let pollTimer = null;
 let downloadDirCache = null;
+let lastStats = null;
+let lastFreeBytes = null;
 
 const els = {
   body: document.getElementById("torrent-body"),
@@ -208,13 +200,24 @@ async function refreshFreeSpace() {
   if (!downloadDirCache) return;
   try {
     const r = await rpc("free-space", { path: downloadDirCache });
-    els.freeSpace.querySelector(".count").textContent = fmtBytes(r["size-bytes"]);
+    lastFreeBytes = r["size-bytes"];
+    els.freeSpace.querySelector(".count").textContent = fmtBytes(lastFreeBytes);
   } catch (e) { /* ignore */ }
 }
 
 function setConn(ok) {
   els.connDot.style.background = ok ? "var(--green)" : "var(--red)";
-  els.connText.textContent = ok ? "Подключено" : "Нет связи";
+  els.connText.textContent = ok ? t("conn_ok") : t("conn_bad");
+}
+
+/* Re-render everything with the new language, using last-known data (no RPC round-trip) */
+function onLangChanged() {
+  if (lastStats) renderStats(lastStats);
+  if (lastFreeBytes != null) els.freeSpace.querySelector(".count").textContent = fmtBytes(lastFreeBytes);
+  if (torrents.length || document.getElementById("app").classList.contains("active")) {
+    renderSidebarCounts();
+    renderTable();
+  }
 }
 
 function startPolling() {
@@ -231,6 +234,7 @@ function stopPolling() {
    RENDER: stats bar + sidebar counts
    ========================================================================== */
 function renderStats(stats) {
+  lastStats = stats;
   els.statDown.textContent = fmtRate(stats.downloadSpeed);
   els.statUp.textContent = fmtRate(stats.uploadSpeed);
   els.statCount.textContent = stats.torrentCount;
@@ -238,14 +242,14 @@ function renderStats(stats) {
 
 function renderSidebarCounts() {
   const c = { all: torrents.length, downloading: 0, seeding: 0, active: 0, paused: 0, checking: 0, completed: 0, error: 0 };
-  for (const t of torrents) {
-    if (t.status === 4) c.downloading++;
-    if (t.status === 6) c.seeding++;
-    if (t.status === 4 || t.status === 6) c.active++;
-    if (t.status === 0) c.paused++;
-    if (t.status === 1 || t.status === 2) c.checking++;
-    if (t.percentDone >= 1) c.completed++;
-    if (t.error && t.error !== 0) c.error++;
+  for (const tor of torrents) {
+    if (tor.status === 4) c.downloading++;
+    if (tor.status === 6) c.seeding++;
+    if (tor.status === 4 || tor.status === 6) c.active++;
+    if (tor.status === 0) c.paused++;
+    if (tor.status === 1 || tor.status === 2) c.checking++;
+    if (tor.percentDone >= 1) c.completed++;
+    if (tor.error && tor.error !== 0) c.error++;
   }
   for (const k in c) {
     const el = document.getElementById("cnt-" + k);
@@ -256,15 +260,15 @@ function renderSidebarCounts() {
 /* ==========================================================================
    RENDER: table
    ========================================================================== */
-function matchesFilter(t) {
+function matchesFilter(tor) {
   switch (currentFilter) {
-    case "downloading": return t.status === 4;
-    case "seeding": return t.status === 6;
-    case "active": return t.status === 4 || t.status === 6;
-    case "paused": return t.status === 0;
-    case "checking": return t.status === 1 || t.status === 2;
-    case "completed": return t.percentDone >= 1;
-    case "error": return t.error && t.error !== 0;
+    case "downloading": return tor.status === 4;
+    case "seeding": return tor.status === 6;
+    case "active": return tor.status === 4 || tor.status === 6;
+    case "paused": return tor.status === 0;
+    case "checking": return tor.status === 1 || tor.status === 2;
+    case "completed": return tor.percentDone >= 1;
+    case "error": return tor.error && tor.error !== 0;
     default: return true;
   }
 }
@@ -273,18 +277,18 @@ function sortedFiltered() {
   let list = torrents.filter(matchesFilter);
   if (searchTerm) {
     const q = searchTerm.toLowerCase();
-    list = list.filter((t) => t.name.toLowerCase().includes(q));
+    list = list.filter((tor) => tor.name.toLowerCase().includes(q));
   }
   const keyFn = {
-    name: (t) => t.name.toLowerCase(),
-    size: (t) => t.totalSize,
-    progress: (t) => t.percentDone,
-    status: (t) => t.status,
-    down: (t) => t.rateDownload,
-    up: (t) => t.rateUpload,
-    eta: (t) => (t.eta < 0 ? Infinity : t.eta),
-    ratio: (t) => t.uploadRatio,
-    peers: (t) => t.peersConnected,
+    name: (tor) => tor.name.toLowerCase(),
+    size: (tor) => tor.totalSize,
+    progress: (tor) => tor.percentDone,
+    status: (tor) => tor.status,
+    down: (tor) => tor.rateDownload,
+    up: (tor) => tor.rateUpload,
+    eta: (tor) => (tor.eta < 0 ? Infinity : tor.eta),
+    ratio: (tor) => tor.uploadRatio,
+    peers: (tor) => tor.peersConnected,
   }[sortKey];
   list.sort((a, b) => {
     const av = keyFn(a), bv = keyFn(b);
@@ -300,35 +304,36 @@ function renderTable() {
   els.empty.style.display = list.length ? "none" : "flex";
 
   // reconcile selection with still-present ids
-  const presentIds = new Set(torrents.map((t) => t.id));
+  const presentIds = new Set(torrents.map((tor) => tor.id));
   for (const id of Array.from(selected)) if (!presentIds.has(id)) selected.delete(id);
   updateToolbarState();
 
   els.body.innerHTML = list.map(rowHtml).join("");
 }
 
-function rowHtml(t) {
-  const meta = STATUS_META[t.status] || { label: "?", dot: "paused" };
-  const pct = Math.round(t.percentDone * 100);
-  const fillColor = t.status === 6 ? "var(--green)" : t.status === 0 ? "var(--text-faint)" : "var(--amber)";
-  const isSel = selected.has(t.id) ? "selected" : "";
-  const errBadge = t.error && t.error !== 0 ? ` title="${escapeHtml(t.errorString || "Ошибка")}"` : "";
+function rowHtml(tor) {
+  const meta = statusMeta(tor.status);
+  const isError = tor.error && tor.error !== 0;
+  const pct = Math.round(tor.percentDone * 100);
+  const fillColor = tor.status === 6 ? "var(--green)" : tor.status === 0 ? "var(--text-faint)" : "var(--amber)";
+  const isSel = selected.has(tor.id) ? "selected" : "";
+  const errBadge = isError ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
   return `
-    <tr class="${isSel}" data-id="${t.id}">
-      <td class="name-cell"${errBadge}><div class="fname">${escapeHtml(t.name)}</div></td>
-      <td class="num">${fmtBytes(t.totalSize)}</td>
+    <tr class="${isSel}" data-id="${tor.id}">
+      <td class="name-cell"${errBadge}><div class="fname">${escapeHtml(tor.name)}</div></td>
+      <td class="num">${fmtBytes(tor.totalSize)}</td>
       <td>
         <div class="progress-track">
           <div class="progress-fill" style="width:${pct}%; --fill-c:${fillColor}"></div>
           <div class="progress-pct">${pct}%</div>
         </div>
       </td>
-      <td><span class="status-pill"><span class="dot ${t.error && t.error !== 0 ? "error" : meta.dot}"></span>${t.error && t.error !== 0 ? "Ошибка" : meta.label}</span></td>
-      <td class="num ${t.rateDownload ? "rate-down" : "rate-zero"}">${t.rateDownload ? fmtRate(t.rateDownload) : "—"}</td>
-      <td class="num ${t.rateUpload ? "rate-up" : "rate-zero"}">${t.rateUpload ? fmtRate(t.rateUpload) : "—"}</td>
-      <td class="num">${t.status === 4 ? fmtEta(t.eta) : "—"}</td>
-      <td class="num">${fmtRatio(t.uploadRatio)}</td>
-      <td class="num">${t.peersConnected}</td>
+      <td><span class="status-pill"><span class="dot ${isError ? "error" : meta.dot}"></span>${isError ? t("st_error") : meta.label}</span></td>
+      <td class="num ${tor.rateDownload ? "rate-down" : "rate-zero"}">${tor.rateDownload ? fmtRate(tor.rateDownload) : "—"}</td>
+      <td class="num ${tor.rateUpload ? "rate-up" : "rate-zero"}">${tor.rateUpload ? fmtRate(tor.rateUpload) : "—"}</td>
+      <td class="num">${tor.status === 4 ? fmtEta(tor.eta) : "—"}</td>
+      <td class="num">${fmtRatio(tor.uploadRatio)}</td>
+      <td class="num">${tor.peersConnected}</td>
     </tr>`;
 }
 
@@ -347,7 +352,7 @@ els.body.addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-id]");
   if (!tr) return;
   const id = Number(tr.dataset.id);
-  const list = sortedFiltered().map((t) => t.id);
+  const list = sortedFiltered().map((tor) => tor.id);
 
   if (e.shiftKey && lastClickedId != null) {
     const a = list.indexOf(lastClickedId), b = list.indexOf(id);
@@ -380,19 +385,17 @@ async function act(method, extra = {}) {
   if (!selected.size) return;
   try {
     await rpc(method, { ids: Array.from(selected), ...extra });
-    toast(method === "torrent-start" ? "Запущено" : method === "torrent-stop" ? "Поставлено на паузу" : "Готово");
+    toast(method === "torrent-start" ? t("toast_started") : method === "torrent-stop" ? t("toast_paused") : t("toast_done"));
     poll();
   } catch (e) {
-    toast("Ошибка: " + e.message, "error");
+    toast(t("toast_error") + e.message, "error");
   }
 }
 
 function confirmRemove(deleteData) {
   if (!selected.size) return;
   const n = selected.size;
-  const msg = deleteData
-    ? `Удалить ${n} торрент(ов) вместе с файлами на диске? Это необратимо.`
-    : `Удалить ${n} торрент(ов) из списка (файлы останутся на диске)?`;
+  const msg = deleteData ? tf("confirm_remove_data", n) : tf("confirm_remove", n);
   if (!confirm(msg)) return;
   act("torrent-remove", { "delete-local-data": deleteData });
 }
@@ -487,7 +490,7 @@ document.querySelectorAll(".modal-tab").forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
 });
 function switchTab(name) {
-  document.querySelectorAll(".modal-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".modal-tab").forEach((tabEl) => tabEl.classList.toggle("active", tabEl.dataset.tab === name));
   document.querySelectorAll(".modal-pane").forEach((p) => p.classList.toggle("active", p.dataset.pane === name));
 }
 
@@ -553,8 +556,8 @@ document.getElementById("modal-submit").addEventListener("click", async () => {
     submitBtn.disabled = false;
   }
 
-  if (added) toast(`Добавлено: ${added}`, "success");
-  if (failed) toast(`Не удалось добавить: ${failed}`, "error");
+  if (added) toast(t("toast_added") + added, "success");
+  if (failed) toast(t("toast_add_failed") + failed, "error");
   if (added) { closeModal(); poll(); }
 });
 
@@ -569,6 +572,13 @@ function toast(msg, kind = "") {
   wrap.appendChild(el);
   setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity .3s"; setTimeout(() => el.remove(), 300); }, 3200);
 }
+
+/* ==========================================================================
+   LANGUAGE SWITCH
+   ========================================================================== */
+document.querySelectorAll(".lang-btn").forEach((btn) => {
+  btn.addEventListener("click", () => setLang(btn.dataset.lang));
+});
 
 /* keyboard: Escape closes modal/menu, Delete removes selection */
 document.addEventListener("keydown", (e) => {

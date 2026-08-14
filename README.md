@@ -1,4 +1,4 @@
-# TransmissionQ — QPKG для QNAP (x86_64)
+# Torrent Station — QPKG для QNAP (x86_64)
 
 Торрент-клиент для QNAP как QPKG-пакет. Не собственный BT-движок, а
 обёртка вокруг `transmission-daemon`, который ставится из **Entware**
@@ -20,15 +20,15 @@ Web UI.
 ./build.sh
 ```
 
-Результат: `build/TransmissionQ_1.0.0_x86_64.qpkg`
+Результат: `build/TorrentStation_1.0.0_x86_64.qpkg`
 
 ## Установка на NAS
 
 Скопировать на NAS и поставить одним из способов:
 
 ```bash
-scp build/TransmissionQ_1.0.0_x86_64.qpkg admin@<NAS-IP>:/share/Public/
-ssh admin@<NAS-IP> "sh /share/Public/TransmissionQ_1.0.0_x86_64.qpkg"
+scp build/TorrentStation_1.0.0_x86_64.qpkg admin@<NAS-IP>:/share/Public/
+ssh admin@<NAS-IP> "sh /share/Public/TorrentStation_1.0.0_x86_64.qpkg"
 ```
 
 Либо через App Center → шестерёнка → **Install Manually** → указать файл `.qpkg`.
@@ -39,7 +39,7 @@ opkg (нужен интернет на NAS) и сгенерирует парол
 ## После установки
 
 ```bash
-ssh admin@<NAS-IP> "cat /share/CACHEDEV1_DATA/.qpkg/TransmissionQ/rpc-credentials.txt"
+ssh admin@<NAS-IP> "cat /share/CACHEDEV1_DATA/.qpkg/TorrentStation/rpc-credentials.txt"
 ```
 
 Web UI: `http://<NAS-IP>:9091/transmission/web/`
@@ -47,10 +47,10 @@ Web UI: `http://<NAS-IP>:9091/transmission/web/`
 Управление сервисом:
 
 ```bash
-/share/CACHEDEV1_DATA/.qpkg/TransmissionQ/shared/TransmissionQ.sh {start|stop|restart|status}
+/share/CACHEDEV1_DATA/.qpkg/TorrentStation/shared/TorrentStation.sh {start|stop|restart|status}
 ```
 
-Логи: `.../TransmissionQ/transmission.log`
+Логи: `.../TorrentStation/transmission.log`
 
 ## Известные места, которые может понадобиться поправить под ваш QTS
 
@@ -59,7 +59,7 @@ Web UI: `http://<NAS-IP>:9091/transmission/web/`
   `/etc/config/qpkg.conf` — версии QTS 4.x/5.x немного расходятся.
   Сверить с блоком уже установленного пакета (например Entware) в
   `/etc/config/qpkg.conf` на вашем NAS и подправить при необходимости.
-- `TransmissionQ.sh`: путь до web-файлов Entware-пакета transmission
+- `TorrentStation.sh`: путь до web-файлов Entware-пакета transmission
   (`--web-directory`, если понадобится нестандартный путь).
 - Порты (`rpc-port 9091`, `peer-port 51413`) и `download-dir` —
   поменять под свою раскладку шар.

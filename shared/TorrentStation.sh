@@ -1,9 +1,9 @@
 #!/bin/sh
-# TransmissionQ control script — install/start/stop/restart/status
+# TorrentStation control script — install/start/stop/restart/status
 # Called by App Center (via qpkg.cfg's QPKG_SERVICE_PROGRAM) as:
-#   TransmissionQ.sh {start|stop|restart|status}
+#   TorrentStation.sh {start|stop|restart|status}
 
-QPKG_NAME="TransmissionQ"
+QPKG_NAME="TorrentStation"
 QPKG_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 OPT=/opt
@@ -11,7 +11,10 @@ OPKG="$OPT/bin/opkg"
 TR_DAEMON="$OPT/bin/transmission-daemon"
 TR_REMOTE="$OPT/bin/transmission-remote"
 
-WEBUI_DIR="$QPKG_ROOT/webui"                # our custom qBittorrent-styled UI
+WEBUI_DIR="$QPKG_ROOT/webui"                # our custom qBittorrent-styled UI (source)
+WEB_TARGET_DIR="$OPT/share/transmission/public_html"  # where transmission-daemon actually serves the UI from
+                                             # (this build has no --web-directory flag, so we overwrite the
+                                             # stock files here instead — same trick transmission-web-control uses)
 DATA_DIR="$QPKG_ROOT/data"                 # transmission --config-dir (settings.json, resume, blocklists)
 CONF_FILE="$DATA_DIR/settings.json"
 CONF_TEMPLATE="$QPKG_ROOT/config/settings.json.template"
@@ -25,11 +28,11 @@ WATCH_DIR="/share/Download/Torrents/.watch"
 
 RPC_PORT=9091
 
-log() { echo "[TransmissionQ] $*"; }
-die() { echo "[TransmissionQ] ERROR: $*" >&2; exit 1; }
+log() { echo "[TorrentStation] $*"; }
+die() { echo "[TorrentStation] ERROR: $*" >&2; exit 1; }
 
 check_entware() {
-    [ -x "$OPKG" ] || die "Entware not found at $OPKG. Install Entware first (App Center -> search 'Entware', or see https://github.com/Entware/Entware/wiki/Install-on-QNAP-NAS), then reinstall/start TransmissionQ."
+    [ -x "$OPKG" ] || die "Entware not found at $OPKG. Install Entware first (App Center -> search 'Entware', or see https://github.com/Entware/Entware/wiki/Install-on-QNAP-NAS), then reinstall/start TorrentStation."
 }
 
 ensure_transmission_installed() {
@@ -65,7 +68,7 @@ ensure_config() {
             "$CONF_TEMPLATE" > "$CONF_FILE"
 
         {
-            echo "Transmission Web UI: http://<NAS-IP>:${RPC_PORT}/transmission/web/"
+            echo "Torrent Station — Web UI: http://<NAS-IP>:${RPC_PORT}/transmission/web/"
             echo "Username: ${RPC_USER}"
             echo "Password: ${RPC_PASS}"
             echo "(This file is generated once, on first start. Delete settings.json to regenerate.)"
@@ -73,6 +76,14 @@ ensure_config() {
         chmod 600 "$CRED_FILE"
         log "Credentials written to $CRED_FILE (chmod 600)"
     fi
+}
+
+ensure_webui() {
+    # Overwrite the stock Transmission web UI with ours. Re-run on every
+    # start/restart so a future `opkg upgrade transmission-web` (which would
+    # restore the stock files) gets clobbered back to our UI on next restart.
+    mkdir -p "$WEB_TARGET_DIR"
+    cp -a "$WEBUI_DIR"/. "$WEB_TARGET_DIR"/
 }
 
 is_running() {
@@ -83,6 +94,7 @@ start() {
     check_entware
     ensure_transmission_installed
     ensure_config
+    ensure_webui
 
     if is_running; then
         log "already running (pid $(cat "$PID_FILE"))"
@@ -96,8 +108,7 @@ start() {
         --logfile "$LOG_FILE" \
         --log-info \
         --no-portmap \
-        --port "$RPC_PORT" \
-        --web-directory "$WEBUI_DIR" >> "$LOG_FILE" 2>&1
+        --port "$RPC_PORT" >> "$LOG_FILE" 2>&1
 
     sleep 1
     if is_running; then
@@ -130,10 +141,10 @@ restart() {
 
 status() {
     if is_running; then
-        echo "TransmissionQ is running (pid $(cat "$PID_FILE"))"
+        echo "TorrentStation is running (pid $(cat "$PID_FILE"))"
         exit 0
     else
-        echo "TransmissionQ is not running"
+        echo "TorrentStation is not running"
         exit 1
     fi
 }
