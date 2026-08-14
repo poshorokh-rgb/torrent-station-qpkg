@@ -11,7 +11,7 @@
    there's no separate login step to perform here, and the browser resends
    the cached credentials automatically on every same-origin request.
    ========================================================================== */
-const RPC_URL = "transmission/rpc";
+const RPC_URL = "/transmission/rpc"; // absolute — page lives at /transmission/web/, relative would double up
 
 let sessionId = null;
 
