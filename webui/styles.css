@@ -357,12 +357,9 @@ td.name-cell .fname {
 .empty-state .t1 { font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-dim); }
 .empty-state .t2 { font-size: 11.5px; }
 
-/* row stagger-in */
-@keyframes row-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-table.torrents tbody tr { animation: row-in 0.25s ease both; }
+/* Note: no per-row mount animation here on purpose — the table body is
+   fully re-rendered every poll (~2s), so any "appear" animation on tr
+   would replay every cycle and read as a constant flicker. */
 
 /* ---- Status bar ---- */
 .statusbar {
