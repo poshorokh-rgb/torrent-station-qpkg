@@ -680,20 +680,6 @@ async function setFilePriority(idx, value) {
   }
 }
 
-async function setAllFiles(wanted) {
-  if (currentDetailsId == null) return;
-  const count = fileRowsEl.querySelectorAll(".file-row").length;
-  const allIdx = Array.from({ length: count }, (_, i) => i);
-  const args = { ids: [currentDetailsId] };
-  args[wanted ? "files-wanted" : "files-unwanted"] = allIdx;
-  try {
-    await rpc("torrent-set", args);
-    fetchDetails();
-  } catch (e) {
-    toast(t("toast_error") + e.message, "error");
-  }
-}
-
 function switchDetailsTab(name) {
   modalDetails.querySelectorAll(".modal-tab").forEach((tabEl) => tabEl.classList.toggle("active", tabEl.dataset.dtab === name));
   modalDetails.querySelectorAll(".modal-pane").forEach((p) => p.classList.toggle("active", p.dataset.dpane === name));
@@ -713,9 +699,6 @@ fileRowsEl.addEventListener("change", (e) => {
 
 fileRowsEl.addEventListener("focusin", (e) => { if (e.target.tagName === "SELECT") fileSelectFocused = true; });
 fileRowsEl.addEventListener("focusout", (e) => { if (e.target.tagName === "SELECT") fileSelectFocused = false; });
-
-document.getElementById("files-select-all").addEventListener("click", () => setAllFiles(true));
-document.getElementById("files-select-none").addEventListener("click", () => setAllFiles(false));
 
 /* ==========================================================================
    TOAST

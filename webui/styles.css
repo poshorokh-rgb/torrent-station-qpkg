@@ -613,8 +613,6 @@ td.name-cell .fname {
 .tracker-row:last-child { border-bottom: none; }
 .tracker-row .t-url { color: var(--text-hi); word-break: break-all; }
 
-.files-head { display: flex; gap: 8px; margin-bottom: 12px; }
-
 .file-rows { display: flex; flex-direction: column; gap: 6px; }
 .file-row {
   display: grid;
