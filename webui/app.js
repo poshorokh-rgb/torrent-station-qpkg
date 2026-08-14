@@ -290,7 +290,7 @@ function rowHtml(tor) {
   const meta = statusMeta(tor.status);
   const isError = tor.error && tor.error !== 0;
   const pct = Math.round(tor.percentDone * 100);
-  const fillColor = tor.status === 6 ? "var(--green)" : tor.status === 0 ? "var(--text-faint)" : "var(--amber)";
+  const fillColor = tor.status === 6 ? "var(--progress-green)" : tor.status === 0 ? "var(--progress-faint)" : "var(--progress-amber)";
   const isSel = selected.has(tor.id) ? "selected" : "";
   const errBadge = isError ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
   return `
@@ -651,7 +651,7 @@ function renderDetailsFiles(tor) {
         <div class="f-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
         <div class="f-size">${fmtBytes(f.length)}</div>
         <div class="f-progress">
-          <div class="progress-track"><div class="progress-fill" style="width:${pct}%; --fill-c:var(--amber)"></div><div class="progress-pct">${pct}%</div></div>
+          <div class="progress-track"><div class="progress-fill" style="width:${pct}%; --fill-c:var(--progress-amber)"></div><div class="progress-pct">${pct}%</div></div>
         </div>
         <select data-idx="${i}">
           <option value="skip"${value === "skip" ? " selected" : ""}>${escapeHtml(t("priority_skip"))}</option>

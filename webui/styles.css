@@ -136,6 +136,18 @@
   --ambient-2:    rgba(31, 138, 76, 0.05);
 }
 
+/* Progress bar colors are intentionally NOT themed — they keep the dark
+   palette in both light and dark mode, defined once in base :root only
+   (not redefined under [data-theme="light"]). */
+:root {
+  --progress-bg:     #0a0c0b;
+  --progress-border: #2a302c;
+  --progress-amber:  #ff9d2e;
+  --progress-green:  #5eeb8f;
+  --progress-faint:  #4a524c;
+  --progress-text:   #eef2ee;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
@@ -357,8 +369,8 @@ td.name-cell .fname {
 .progress-track {
   position: relative;
   width: 110px; height: 15px;
-  background: var(--bg-void);
-  border: 1px solid var(--line);
+  background: var(--progress-bg);
+  border: 1px solid var(--progress-border);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -366,15 +378,15 @@ td.name-cell .fname {
   position: absolute; inset: 0; right: auto;
   background: repeating-linear-gradient(
     115deg,
-    var(--fill-c, var(--amber)) 0px, var(--fill-c, var(--amber)) 6px,
-    color-mix(in srgb, var(--fill-c, var(--amber)) 75%, black) 6px, color-mix(in srgb, var(--fill-c, var(--amber)) 75%, black) 12px
+    var(--fill-c, var(--progress-amber)) 0px, var(--fill-c, var(--progress-amber)) 6px,
+    color-mix(in srgb, var(--fill-c, var(--progress-amber)) 75%, black) 6px, color-mix(in srgb, var(--fill-c, var(--progress-amber)) 75%, black) 12px
   );
   transition: width 0.4s cubic-bezier(.4,0,.2,1);
 }
 .progress-pct {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9.5px; font-weight: 600; color: var(--text-hi);
+  font-size: 9.5px; font-weight: 600; color: var(--progress-text);
   text-shadow: 0 1px 2px rgba(0,0,0,0.8);
   letter-spacing: 0.02em;
 }
