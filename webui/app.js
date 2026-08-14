@@ -174,6 +174,7 @@ function onLangChanged() {
     renderSidebarCounts();
     renderTable();
   }
+  if (currentDetailsId != null) fetchDetails();
 }
 
 function startPolling() {
@@ -412,10 +413,17 @@ ctxMenu.addEventListener("click", (e) => {
   const item = e.target.closest(".ctx-item");
   if (!item) return;
   const action = item.dataset.action;
-  if (action === "resume") act("torrent-start");
+  if (action === "details") openDetails(Array.from(selected)[0]);
+  else if (action === "resume") act("torrent-start");
   else if (action === "pause") act("torrent-stop");
   else if (action === "remove") confirmRemove(false);
   else if (action === "remove-data") confirmRemove(true);
+});
+
+els.body.addEventListener("dblclick", (e) => {
+  const tr = e.target.closest("tr[data-id]");
+  if (!tr) return;
+  openDetails(Number(tr.dataset.id));
 });
 
 /* ==========================================================================
@@ -518,6 +526,172 @@ document.getElementById("modal-submit").addEventListener("click", async () => {
 });
 
 /* ==========================================================================
+   DETAILS MODAL — general info + per-file priority
+   ========================================================================== */
+const modalDetails = document.getElementById("modal-details");
+const detailsTitle = document.getElementById("details-title");
+const detailsGeneralEl = document.getElementById("details-general");
+const fileRowsEl = document.getElementById("file-rows");
+
+const DETAIL_FIELDS = [
+  "id", "name", "status", "totalSize", "downloadDir", "hashString",
+  "addedDate", "doneDate", "comment", "creator", "dateCreated", "isPrivate",
+  "pieceCount", "pieceSize", "error", "errorString", "percentDone",
+  "downloadedEver", "uploadedEver", "uploadRatio", "trackerStats",
+  "files", "fileStats",
+];
+
+let currentDetailsId = null;
+let detailsTimer = null;
+
+function openDetails(id) {
+  if (id == null) return;
+  currentDetailsId = id;
+  switchDetailsTab("general");
+  modalDetails.classList.add("show");
+  fetchDetails();
+  detailsTimer = setInterval(fetchDetails, 3000);
+}
+
+function closeDetails() {
+  modalDetails.classList.remove("show");
+  currentDetailsId = null;
+  if (detailsTimer) clearInterval(detailsTimer);
+  detailsTimer = null;
+}
+
+async function fetchDetails() {
+  if (currentDetailsId == null) return;
+  try {
+    const data = await rpc("torrent-get", { ids: [currentDetailsId], fields: DETAIL_FIELDS });
+    const tor = data.torrents[0];
+    if (!tor) { closeDetails(); return; }
+    detailsTitle.textContent = tor.name;
+    renderDetailsGeneral(tor);
+    renderDetailsFiles(tor);
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  }
+}
+
+function fmtDate(unixSeconds) {
+  if (!unixSeconds) return "—";
+  const locale = currentLang === "ru" ? "ru-RU" : "en-US";
+  return new Date(unixSeconds * 1000).toLocaleString(locale);
+}
+
+function renderDetailsGeneral(tor) {
+  const rows = [
+    [t("d_status"), statusMeta(tor.status).label],
+    [t("d_size"), fmtBytes(tor.totalSize)],
+    [t("d_downloaded"), fmtBytes(tor.downloadedEver)],
+    [t("d_uploaded"), fmtBytes(tor.uploadedEver)],
+    [t("d_ratio"), fmtRatio(tor.uploadRatio)],
+    [t("d_location"), tor.downloadDir],
+    [t("d_hash"), tor.hashString],
+    [t("d_added"), fmtDate(tor.addedDate)],
+    [t("d_completed"), tor.doneDate ? fmtDate(tor.doneDate) : "—"],
+    [t("d_pieces"), `${tor.pieceCount} × ${fmtBytes(tor.pieceSize)}`],
+    [t("d_private"), tor.isPrivate ? t("yes") : t("no")],
+    [t("d_creator"), tor.creator || "—"],
+    [t("d_comment"), tor.comment || "—"],
+  ];
+  if (tor.error && tor.error !== 0) rows.splice(1, 0, [t("d_error"), tor.errorString || t("st_error")]);
+
+  const dl = rows.map(([k, v], i) => {
+    const mono = i === 6; // hash
+    return `<dt>${escapeHtml(k)}</dt><dd${mono ? ' class="mono"' : ""}>${escapeHtml(String(v))}</dd>`;
+  }).join("");
+
+  const trackers = (tor.trackerStats || []).map((ts) => `
+    <div class="tracker-row">
+      <span class="t-url">${escapeHtml(ts.announce)}</span>
+      <span>${ts.seederCount >= 0 ? ts.seederCount : "—"} / ${ts.leecherCount >= 0 ? ts.leecherCount : "—"}</span>
+    </div>`).join("") || `<div class="tracker-row"><span class="t-url">—</span></div>`;
+
+  detailsGeneralEl.innerHTML = `
+    <dl class="detail-grid">${dl}</dl>
+    <div class="detail-section-title">${escapeHtml(t("d_trackers_title"))}</div>
+    ${trackers}`;
+}
+
+function renderDetailsFiles(tor) {
+  const files = tor.files || [];
+  const stats = tor.fileStats || [];
+  fileRowsEl.innerHTML = files.map((f, i) => {
+    const st = stats[i] || { bytesCompleted: 0, wanted: true, priority: 0 };
+    const pct = f.length ? Math.round((st.bytesCompleted / f.length) * 100) : 0;
+    const value = !st.wanted ? "skip" : st.priority === 1 ? "high" : st.priority === -1 ? "low" : "normal";
+    return `
+      <div class="file-row${!st.wanted ? " skipped" : ""}" data-idx="${i}">
+        <div class="f-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
+        <div class="f-size">${fmtBytes(f.length)}</div>
+        <div class="f-progress">
+          <div class="progress-track"><div class="progress-fill" style="width:${pct}%; --fill-c:var(--amber)"></div><div class="progress-pct">${pct}%</div></div>
+        </div>
+        <select data-idx="${i}">
+          <option value="skip"${value === "skip" ? " selected" : ""}>${escapeHtml(t("priority_skip"))}</option>
+          <option value="low"${value === "low" ? " selected" : ""}>${escapeHtml(t("priority_low"))}</option>
+          <option value="normal"${value === "normal" ? " selected" : ""}>${escapeHtml(t("priority_normal"))}</option>
+          <option value="high"${value === "high" ? " selected" : ""}>${escapeHtml(t("priority_high"))}</option>
+        </select>
+      </div>`;
+  }).join("");
+}
+
+async function setFilePriority(idx, value) {
+  if (currentDetailsId == null) return;
+  const args = { ids: [currentDetailsId] };
+  if (value === "skip") {
+    args["files-unwanted"] = [idx];
+  } else {
+    args["files-wanted"] = [idx];
+    args[value === "high" ? "priority-high" : value === "low" ? "priority-low" : "priority-normal"] = [idx];
+  }
+  try {
+    await rpc("torrent-set", args);
+    fetchDetails();
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  }
+}
+
+async function setAllFiles(wanted) {
+  if (currentDetailsId == null) return;
+  const count = fileRowsEl.querySelectorAll(".file-row").length;
+  const allIdx = Array.from({ length: count }, (_, i) => i);
+  const args = { ids: [currentDetailsId] };
+  args[wanted ? "files-wanted" : "files-unwanted"] = allIdx;
+  try {
+    await rpc("torrent-set", args);
+    fetchDetails();
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  }
+}
+
+function switchDetailsTab(name) {
+  modalDetails.querySelectorAll(".modal-tab").forEach((tabEl) => tabEl.classList.toggle("active", tabEl.dataset.dtab === name));
+  modalDetails.querySelectorAll(".modal-pane").forEach((p) => p.classList.toggle("active", p.dataset.dpane === name));
+}
+
+modalDetails.querySelectorAll(".modal-tab").forEach((tabEl) => {
+  tabEl.addEventListener("click", () => switchDetailsTab(tabEl.dataset.dtab));
+});
+
+document.getElementById("details-close").addEventListener("click", closeDetails);
+modalDetails.addEventListener("click", (e) => { if (e.target === modalDetails) closeDetails(); });
+
+fileRowsEl.addEventListener("change", (e) => {
+  const sel = e.target.closest("select[data-idx]");
+  if (!sel) return;
+  setFilePriority(Number(sel.dataset.idx), sel.value);
+});
+
+document.getElementById("files-select-all").addEventListener("click", () => setAllFiles(true));
+document.getElementById("files-select-none").addEventListener("click", () => setAllFiles(false));
+
+/* ==========================================================================
    TOAST
    ========================================================================== */
 function toast(msg, kind = "") {
@@ -544,8 +718,8 @@ startPolling();
 
 /* keyboard: Escape closes modal/menu, Delete removes selection */
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeModal(); ctxMenu.classList.remove("show"); }
-  if (e.key === "Delete" && selected.size && app.classList.contains("active") && !modal.classList.contains("show")) {
+  if (e.key === "Escape") { closeModal(); closeDetails(); ctxMenu.classList.remove("show"); }
+  if (e.key === "Delete" && selected.size && app.classList.contains("active") && !modal.classList.contains("show") && !modalDetails.classList.contains("show")) {
     confirmRemove(false);
   }
 });
