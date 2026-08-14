@@ -6,18 +6,11 @@
    ========================================================================== */
 const I18N = {
   ru: {
-    login_sub: "Панель управления — вход",
-    login_user: "Логин",
-    login_pass: "Пароль",
-    login_submit: "Войти",
-    login_error: "Неверный логин или пароль",
-
     tb_add: "Добавить",
     tb_start: "Старт",
     tb_pause: "Пауза",
     tb_remove: "Удалить",
     search_ph: "Поиск по имени…",
-    logout_title: "Выйти",
 
     sb_status: "Статус",
     sb_all: "Все",
@@ -78,6 +71,7 @@ const I18N = {
     toast_error: "Ошибка: ",
     toast_added: "Добавлено: ",
     toast_add_failed: "Не удалось добавить: ",
+    toast_reauth: "Сессия истекла, обновляем страницу…",
 
     confirm_remove: (n) => `Удалить ${n} торрент(ов) из списка (файлы останутся на диске)?`,
     confirm_remove_data: (n) => `Удалить ${n} торрент(ов) вместе с файлами на диске? Это необратимо.`,
@@ -90,18 +84,11 @@ const I18N = {
   },
 
   en: {
-    login_sub: "Control Panel — Sign In",
-    login_user: "Username",
-    login_pass: "Password",
-    login_submit: "Sign In",
-    login_error: "Invalid username or password",
-
     tb_add: "Add",
     tb_start: "Start",
     tb_pause: "Pause",
     tb_remove: "Remove",
     search_ph: "Search by name…",
-    logout_title: "Sign out",
 
     sb_status: "Status",
     sb_all: "All",
@@ -162,6 +149,7 @@ const I18N = {
     toast_error: "Error: ",
     toast_added: "Added: ",
     toast_add_failed: "Failed to add: ",
+    toast_reauth: "Session expired, reloading…",
 
     confirm_remove: (n) => `Remove ${n} torrent(s) from the list (files stay on disk)?`,
     confirm_remove_data: (n) => `Remove ${n} torrent(s) AND delete their files from disk? This cannot be undone.`,

@@ -4,35 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Torrent Station</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 <div class="grain"></div>
-
-<!-- ============ LOGIN ============ -->
-<div id="login-screen">
-  <form class="login-panel" id="login-form" autocomplete="off">
-    <div class="lang-switch lang-switch-login">
-      <button class="lang-btn" data-lang="ru">RU</button>
-      <button class="lang-btn" data-lang="en">EN</button>
-    </div>
-    <div class="login-mark">
-      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
-      <span class="wordmark">Torrent<span>Station</span></span>
-    </div>
-    <div class="login-sub" data-i18n="login_sub">Панель управления — вход</div>
-    <div class="field">
-      <label for="f-user" data-i18n="login_user">Логин</label>
-      <input id="f-user" type="text" autocomplete="username" required>
-    </div>
-    <div class="field">
-      <label for="f-pass" data-i18n="login_pass">Пароль</label>
-      <input id="f-pass" type="password" autocomplete="current-password" required>
-    </div>
-    <button class="login-btn" type="submit" data-i18n="login_submit">Войти</button>
-    <div class="login-error" id="login-error"><span class="login-blink"></span><span id="login-error-text" data-i18n="login_error">Неверный логин или пароль</span></div>
-  </form>
-</div>
 
 <!-- ============ APP ============ -->
 <div id="app">
@@ -67,11 +42,6 @@
     <div class="lang-switch">
       <button class="lang-btn" data-lang="ru">RU</button>
       <button class="lang-btn" data-lang="en">EN</button>
-    </div>
-    <div class="session-info">
-      <button class="logout-btn" id="btn-logout" data-i18n-title="logout_title" title="Выйти">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
     </div>
   </div>
 
@@ -177,7 +147,7 @@
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
-<script src="i18n.js"></script>
-<script src="app.js"></script>
+<script src="i18n.js?v=3"></script>
+<script src="app.js?v=3"></script>
 </body>
 </html>

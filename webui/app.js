@@ -2,22 +2,21 @@
 
 /* ==========================================================================
    RPC CLIENT — talks to Transmission's JSON-RPC endpoint at /transmission/rpc
-   Handles the X-Transmission-Session-Id CSRF handshake and HTTP Basic auth.
+   Handles the X-Transmission-Session-Id CSRF handshake.
+
+   Auth note: Transmission itself gates the *entire* /transmission/ path
+   (static files included) behind HTTP Basic Auth when
+   rpc-authentication-required is on. That means the browser's native
+   credentials prompt has already succeeded before this script ever runs —
+   there's no separate login step to perform here, and the browser resends
+   the cached credentials automatically on every same-origin request.
    ========================================================================== */
 const RPC_URL = "transmission/rpc";
-const AUTH_KEY = "tq_auth"; // sessionStorage: base64("user:pass")
 
 let sessionId = null;
 
-function authHeader() {
-  const b64 = sessionStorage.getItem(AUTH_KEY);
-  return b64 ? "Basic " + b64 : null;
-}
-
 async function rpc(method, args = {}, _retried = false) {
   const headers = { "Content-Type": "application/json" };
-  const auth = authHeader();
-  if (auth) headers["Authorization"] = auth;
   if (sessionId) headers["X-Transmission-Session-Id"] = sessionId;
 
   const res = await fetch(RPC_URL, {
@@ -44,53 +43,9 @@ async function rpc(method, args = {}, _retried = false) {
 }
 
 /* ==========================================================================
-   LOGIN
+   APP ENTRY
    ========================================================================== */
-const loginScreen = document.getElementById("login-screen");
-const loginForm = document.getElementById("login-form");
-const loginError = document.getElementById("login-error");
 const app = document.getElementById("app");
-
-async function tryLogin(user, pass) {
-  sessionStorage.setItem(AUTH_KEY, btoa(user + ":" + pass));
-  try {
-    await rpc("session-get");
-    enterApp();
-  } catch (e) {
-    sessionStorage.removeItem(AUTH_KEY);
-    loginError.classList.add("show");
-    document.getElementById("f-pass").value = "";
-    document.getElementById("f-pass").focus();
-  }
-}
-
-loginForm.addEventListener("submit", (e) => {
-  e.preventDefault();
-  loginError.classList.remove("show");
-  const user = document.getElementById("f-user").value.trim();
-  const pass = document.getElementById("f-pass").value;
-  if (!user || !pass) return;
-  tryLogin(user, pass);
-});
-
-document.getElementById("btn-logout").addEventListener("click", () => {
-  sessionStorage.removeItem(AUTH_KEY);
-  stopPolling();
-  app.classList.remove("active");
-  loginScreen.style.display = "flex";
-  document.getElementById("f-pass").value = "";
-});
-
-function enterApp() {
-  loginScreen.style.display = "none";
-  app.classList.add("active");
-  startPolling();
-}
-
-// Auto-login if credentials already in this tab's session
-if (sessionStorage.getItem(AUTH_KEY)) {
-  rpc("session-get").then(enterApp).catch(() => sessionStorage.removeItem(AUTH_KEY));
-}
 
 /* ==========================================================================
    FORMATTERS
@@ -186,10 +141,11 @@ async function poll() {
     }
   } catch (e) {
     if (e.code === 401) {
-      sessionStorage.removeItem(AUTH_KEY);
+      // Cached Basic Auth credentials were rejected (rare — e.g. password
+      // changed on the daemon side). Reloading makes the browser re-prompt.
       stopPolling();
-      app.classList.remove("active");
-      loginScreen.style.display = "flex";
+      toast(t("toast_reauth"), "error");
+      setTimeout(() => window.location.reload(), 1500);
       return;
     }
     setConn(false);
@@ -579,6 +535,12 @@ function toast(msg, kind = "") {
 document.querySelectorAll(".lang-btn").forEach((btn) => {
   btn.addEventListener("click", () => setLang(btn.dataset.lang));
 });
+
+/* ==========================================================================
+   APP ENTRY — runs once everything above is defined
+   ========================================================================== */
+app.classList.add("active");
+startPolling();
 
 /* keyboard: Escape closes modal/menu, Delete removes selection */
 document.addEventListener("keydown", (e) => {
