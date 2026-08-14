@@ -83,6 +83,7 @@ const I18N = {
     priority_normal: "Обычный",
     priority_high: "Высокий",
 
+    theme_toggle: "Тема",
     settings_title: "Настройки",
     set_downloads: "Загрузка",
     set_download_dir: "Папка загрузки",
@@ -207,6 +208,7 @@ const I18N = {
     priority_normal: "Normal",
     priority_high: "High",
 
+    theme_toggle: "Theme",
     settings_title: "Settings",
     set_downloads: "Downloads",
     set_download_dir: "Download folder",
