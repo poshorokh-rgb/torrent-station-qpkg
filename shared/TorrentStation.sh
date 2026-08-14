@@ -28,6 +28,14 @@ WATCH_DIR="/share/Download/Torrents/.watch"
 
 RPC_PORT=9091
 
+# Download history — lives on the volume itself, OUTSIDE $QPKG_ROOT, so it
+# survives even if the whole .qpkg/TorrentStation folder gets deleted (as
+# opposed to living under $DATA_DIR, which would not survive that).
+VOL="${QPKG_ROOT%/.qpkg/*}"
+HISTORY_DIR="$VOL/.torrentstation-history"
+HISTORY_FILE="$HISTORY_DIR/history.jsonl"
+HOOKS_DIR="$QPKG_ROOT/shared/hooks"
+
 log() { echo "[TorrentStation] $*"; }
 die() { echo "[TorrentStation] ERROR: $*" >&2; exit 1; }
 
@@ -65,6 +73,7 @@ ensure_config() {
             -e "s#__RPC_PORT__#${RPC_PORT}#g" \
             -e "s#__RPC_USER__#${RPC_USER}#g" \
             -e "s#__RPC_PASS__#${RPC_PASS}#g" \
+            -e "s#__QPKG_ROOT__#${QPKG_ROOT}#g" \
             "$CONF_TEMPLATE" > "$CONF_FILE"
 
         {
@@ -86,6 +95,23 @@ ensure_webui() {
     cp -a "$WEBUI_DIR"/. "$WEB_TARGET_DIR"/
 }
 
+ensure_hooks() {
+    # Materialize the on-torrent-added/-done scripts from their templates.
+    # Regenerated every start (cheap, keeps them in sync with the template).
+    for name in on-torrent-added on-torrent-done; do
+        sed "s#__HISTORY_FILE__#${HISTORY_FILE}#g" "$HOOKS_DIR/${name}.sh.template" > "$HOOKS_DIR/${name}.sh"
+        chmod 755 "$HOOKS_DIR/${name}.sh"
+    done
+}
+
+ensure_history() {
+    mkdir -p "$HISTORY_DIR"
+    [ -f "$HISTORY_FILE" ] || : > "$HISTORY_FILE"
+    # Re-sync the web-served copy in case public_html got reset (e.g. by
+    # an opkg upgrade of transmission-web).
+    cp -f "$HISTORY_FILE" "$WEB_TARGET_DIR/history.jsonl" 2>/dev/null
+}
+
 is_running() {
     [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
 }
@@ -95,6 +121,8 @@ start() {
     ensure_transmission_installed
     ensure_config
     ensure_webui
+    ensure_hooks
+    ensure_history
 
     if is_running; then
         log "already running (pid $(cat "$PID_FILE"))"

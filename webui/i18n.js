@@ -100,6 +100,11 @@ const I18N = {
     enc_required: "Обязательно",
     set_save: "Сохранить",
 
+    history_title: "История",
+    history_added: "добавлен",
+    history_done: "докачан",
+    history_empty: "Пока пусто — здесь появятся добавленные и завершённые торренты",
+
     st_paused: "Пауза",
     st_check_wait: "Ожидает проверки",
     st_checking: "Проверка",
@@ -225,6 +230,11 @@ const I18N = {
     enc_preferred: "Preferred",
     enc_required: "Required",
     set_save: "Save",
+
+    history_title: "History",
+    history_added: "added",
+    history_done: "done",
+    history_empty: "Nothing yet — added and completed torrents will show up here",
 
     st_paused: "Paused",
     st_check_wait: "Queued for check",

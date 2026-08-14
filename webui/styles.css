@@ -613,6 +613,18 @@ td.name-cell .fname {
 .tracker-row:last-child { border-bottom: none; }
 .tracker-row .t-url { color: var(--text-hi); word-break: break-all; }
 
+/* ---- History list ---- */
+.history-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0; font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.history-row .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.history-row:last-child { border-bottom: none; }
+.history-row .h-name { flex: 1; color: var(--text-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-row .h-event { flex-shrink: 0; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); width: 70px; }
+.history-row .h-time { flex-shrink: 0; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
 .file-rows { display: flex; flex-direction: column; gap: 6px; }
 .file-row {
   display: grid;

@@ -56,6 +56,19 @@ Web UI: `http://<NAS-IP>:9091/transmission/web/` — при заходе бра�
 
 Логи: `.../TorrentStation/transmission.log`
 
+## История загрузок
+
+Отдельный журнал (добавлен/докачан) пишется самим `transmission-daemon`
+через хуки `script-torrent-added`/`script-torrent-done` — работает даже
+если браузер не открыт. Хранится **вне** `.qpkg/TorrentStation`, на самом
+томе — `<VOL>/.torrentstation-history/history.jsonl` (например
+`/share/CACHEDEV1_DATA/.torrentstation-history/history.jsonl`) — так он
+переживает удаление папки пакета. Для веб-интерфейса та же история
+зеркалируется в `/opt/share/transmission/public_html/history.jsonl`
+(ресинк на каждый `start`/`restart`, на случай если `public_html` сбросился).
+Смотреть в UI: иконка часов в шапке. Удаление торрента из списка в журнал
+не попадает — у Transmission нет хука на этот случай.
+
 ## Известные грабли
 
 - **Entware может сама поднять свой transmission-daemon при загрузке NAS**

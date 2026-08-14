@@ -718,6 +718,51 @@ function toast(msg, kind = "") {
 document.getElementById("lang-select").addEventListener("change", (e) => setLang(e.target.value));
 
 /* ==========================================================================
+   HISTORY MODAL — reads the daemon-written history.jsonl (added/done events,
+   logged server-side by transmission's script-torrent-added/-done hooks —
+   works even if no browser tab was open when the event happened).
+   ========================================================================== */
+const modalHistory = document.getElementById("modal-history");
+const historyListEl = document.getElementById("history-list");
+
+async function openHistory() {
+  modalHistory.classList.add("show");
+  historyListEl.innerHTML = "";
+  try {
+    const res = await fetch("history.jsonl?_=" + Date.now());
+    if (!res.ok) throw new Error("no history file yet");
+    const text = await res.text();
+    const entries = text.split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => { try { return JSON.parse(line); } catch (e) { return null; } })
+      .filter(Boolean)
+      .reverse();
+
+    if (!entries.length) {
+      historyListEl.innerHTML = `<div class="empty-state"><div class="t2">${escapeHtml(t("history_empty"))}</div></div>`;
+      return;
+    }
+
+    historyListEl.innerHTML = entries.map((e) => `
+      <div class="history-row">
+        <span class="dot ${e.event === "done" ? "seed" : "down"}"></span>
+        <span class="h-name" title="${escapeHtml(e.name || "?")}">${escapeHtml(e.name || "?")}</span>
+        <span class="h-event">${e.event === "done" ? escapeHtml(t("history_done")) : escapeHtml(t("history_added"))}</span>
+        <span class="h-time">${escapeHtml(fmtDate(e.ts))}</span>
+      </div>`).join("");
+  } catch (e) {
+    historyListEl.innerHTML = `<div class="empty-state"><div class="t2">${escapeHtml(t("history_empty"))}</div></div>`;
+  }
+}
+
+function closeHistory() { modalHistory.classList.remove("show"); }
+
+document.getElementById("btn-history").addEventListener("click", openHistory);
+document.getElementById("history-close").addEventListener("click", closeHistory);
+modalHistory.addEventListener("click", (e) => { if (e.target === modalHistory) closeHistory(); });
+
+/* ==========================================================================
    SETTINGS MODAL
    ========================================================================== */
 const modalSettings = document.getElementById("modal-settings");
@@ -797,7 +842,7 @@ startPolling();
 
 /* keyboard: Escape closes modal/menu, Delete removes selection */
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeModal(); closeDetails(); closeSettings(); ctxMenu.classList.remove("show"); }
+  if (e.key === "Escape") { closeModal(); closeDetails(); closeSettings(); closeHistory(); ctxMenu.classList.remove("show"); }
   if (e.key === "Delete" && selected.size && app.classList.contains("active") && !modal.classList.contains("show") && !modalDetails.classList.contains("show")) {
     confirmRemove(false);
   }
