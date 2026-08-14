@@ -706,8 +706,78 @@ function toast(msg, kind = "") {
 /* ==========================================================================
    LANGUAGE SWITCH
    ========================================================================== */
-document.querySelectorAll(".lang-btn").forEach((btn) => {
-  btn.addEventListener("click", () => setLang(btn.dataset.lang));
+document.getElementById("lang-select").addEventListener("change", (e) => setLang(e.target.value));
+
+/* ==========================================================================
+   SETTINGS MODAL
+   ========================================================================== */
+const modalSettings = document.getElementById("modal-settings");
+
+const SETTINGS_FIELDS = [
+  "download-dir",
+  "speed-limit-down", "speed-limit-down-enabled",
+  "speed-limit-up", "speed-limit-up-enabled",
+  "seedRatioLimit", "seedRatioLimited",
+  "peer-port", "port-forwarding-enabled", "encryption",
+];
+
+function setNumInputEnabled(checkboxId, inputId) {
+  document.getElementById(inputId).disabled = !document.getElementById(checkboxId).checked;
+}
+
+async function openSettings() {
+  try {
+    const s = await rpc("session-get", { fields: SETTINGS_FIELDS });
+    document.getElementById("set-download-dir").value = s["download-dir"] || "";
+    document.getElementById("set-dl-limit-enabled").checked = !!s["speed-limit-down-enabled"];
+    document.getElementById("set-dl-limit").value = s["speed-limit-down"] ?? 0;
+    document.getElementById("set-ul-limit-enabled").checked = !!s["speed-limit-up-enabled"];
+    document.getElementById("set-ul-limit").value = s["speed-limit-up"] ?? 0;
+    document.getElementById("set-ratio-enabled").checked = !!s["seedRatioLimited"];
+    document.getElementById("set-ratio").value = s["seedRatioLimit"] ?? 2;
+    document.getElementById("set-peer-port").value = s["peer-port"] ?? 51413;
+    document.getElementById("set-portmap").checked = !!s["port-forwarding-enabled"];
+    document.getElementById("set-encryption").value = s["encryption"] || "preferred";
+    setNumInputEnabled("set-dl-limit-enabled", "set-dl-limit");
+    setNumInputEnabled("set-ul-limit-enabled", "set-ul-limit");
+    setNumInputEnabled("set-ratio-enabled", "set-ratio");
+    modalSettings.classList.add("show");
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  }
+}
+
+function closeSettings() { modalSettings.classList.remove("show"); }
+
+document.getElementById("btn-settings").addEventListener("click", openSettings);
+document.getElementById("settings-close").addEventListener("click", closeSettings);
+document.getElementById("settings-cancel").addEventListener("click", closeSettings);
+modalSettings.addEventListener("click", (e) => { if (e.target === modalSettings) closeSettings(); });
+
+document.getElementById("set-dl-limit-enabled").addEventListener("change", () => setNumInputEnabled("set-dl-limit-enabled", "set-dl-limit"));
+document.getElementById("set-ul-limit-enabled").addEventListener("change", () => setNumInputEnabled("set-ul-limit-enabled", "set-ul-limit"));
+document.getElementById("set-ratio-enabled").addEventListener("change", () => setNumInputEnabled("set-ratio-enabled", "set-ratio"));
+
+document.getElementById("settings-save").addEventListener("click", async () => {
+  const args = {
+    "download-dir": document.getElementById("set-download-dir").value.trim(),
+    "speed-limit-down-enabled": document.getElementById("set-dl-limit-enabled").checked,
+    "speed-limit-down": Number(document.getElementById("set-dl-limit").value) || 0,
+    "speed-limit-up-enabled": document.getElementById("set-ul-limit-enabled").checked,
+    "speed-limit-up": Number(document.getElementById("set-ul-limit").value) || 0,
+    seedRatioLimited: document.getElementById("set-ratio-enabled").checked,
+    seedRatioLimit: Number(document.getElementById("set-ratio").value) || 0,
+    "peer-port": Number(document.getElementById("set-peer-port").value) || 51413,
+    "port-forwarding-enabled": document.getElementById("set-portmap").checked,
+    encryption: document.getElementById("set-encryption").value,
+  };
+  try {
+    await rpc("session-set", args);
+    toast(t("toast_done"), "success");
+    closeSettings();
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  }
 });
 
 /* ==========================================================================
@@ -718,7 +788,7 @@ startPolling();
 
 /* keyboard: Escape closes modal/menu, Delete removes selection */
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeModal(); closeDetails(); ctxMenu.classList.remove("show"); }
+  if (e.key === "Escape") { closeModal(); closeDetails(); closeSettings(); ctxMenu.classList.remove("show"); }
   if (e.key === "Delete" && selected.size && app.classList.contains("active") && !modal.classList.contains("show") && !modalDetails.classList.contains("show")) {
     confirmRemove(false);
   }

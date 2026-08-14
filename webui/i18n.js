@@ -83,6 +83,23 @@ const I18N = {
     priority_normal: "Обычный",
     priority_high: "Высокий",
 
+    settings_title: "Настройки",
+    set_downloads: "Загрузка",
+    set_download_dir: "Папка загрузки",
+    set_speed: "Скорость",
+    set_dl_limit: "Ограничить загрузку",
+    set_ul_limit: "Ограничить отдачу",
+    set_seeding: "Раздача",
+    set_ratio_limit: "Остановить раздачу по рейтингу",
+    set_network: "Сеть",
+    set_peer_port: "Порт входящих соединений",
+    set_portmap: "Автоматическая переадресация портов (UPnP/NAT-PMP)",
+    set_encryption: "Шифрование соединений",
+    enc_tolerated: "Не требуется",
+    enc_preferred: "Предпочтительно",
+    enc_required: "Обязательно",
+    set_save: "Сохранить",
+
     st_paused: "Пауза",
     st_check_wait: "Ожидает проверки",
     st_checking: "Проверка",
@@ -106,6 +123,7 @@ const I18N = {
 
     unit_b: "Б", unit_kb: "КБ", unit_mb: "МБ", unit_gb: "ГБ", unit_tb: "ТБ",
     per_sec: "/с",
+    kbps: "КБ/с",
     eta_inf: "∞", eta_dash: "—",
     eta_s: "с", eta_m: "м", eta_h: "ч", eta_d: "д",
     ratio_inf: "∞",
@@ -189,6 +207,23 @@ const I18N = {
     priority_normal: "Normal",
     priority_high: "High",
 
+    settings_title: "Settings",
+    set_downloads: "Downloads",
+    set_download_dir: "Download folder",
+    set_speed: "Speed",
+    set_dl_limit: "Limit download speed",
+    set_ul_limit: "Limit upload speed",
+    set_seeding: "Seeding",
+    set_ratio_limit: "Stop seeding at ratio",
+    set_network: "Network",
+    set_peer_port: "Incoming peer port",
+    set_portmap: "Automatic port forwarding (UPnP/NAT-PMP)",
+    set_encryption: "Peer connection encryption",
+    enc_tolerated: "Not required",
+    enc_preferred: "Preferred",
+    enc_required: "Required",
+    set_save: "Save",
+
     st_paused: "Paused",
     st_check_wait: "Queued for check",
     st_checking: "Checking",
@@ -212,10 +247,18 @@ const I18N = {
 
     unit_b: "B", unit_kb: "KB", unit_mb: "MB", unit_gb: "GB", unit_tb: "TB",
     per_sec: "/s",
+    kbps: "KB/s",
     eta_inf: "∞", eta_dash: "—",
     eta_s: "s", eta_m: "m", eta_h: "h", eta_d: "d",
     ratio_inf: "∞",
   },
+};
+
+// Display name for each language, shown in the dropdown. Add a language by
+// adding a key to I18N above and a name here — the <select> builds itself.
+const LANG_NAMES = {
+  ru: "Русский",
+  en: "English",
 };
 
 const LANG_KEY = "tq_lang";
@@ -249,9 +292,15 @@ function applyStaticI18n() {
   document.querySelectorAll("[data-i18n-title]").forEach((el) => {
     el.title = t(el.dataset.i18nTitle);
   });
-  document.querySelectorAll(".lang-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.lang === currentLang);
-  });
+  const langSelect = document.getElementById("lang-select");
+  if (langSelect) {
+    if (langSelect.options.length !== Object.keys(I18N).length) {
+      langSelect.innerHTML = Object.keys(I18N)
+        .map((code) => `<option value="${code}">${LANG_NAMES[code] || code}</option>`)
+        .join("");
+    }
+    langSelect.value = currentLang;
+  }
 }
 
 function setLang(lang) {

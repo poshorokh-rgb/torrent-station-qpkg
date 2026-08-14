@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Torrent Station</title>
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
 <div class="grain"></div>
@@ -39,10 +39,10 @@
       <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <input type="text" id="search" data-i18n-placeholder="search_ph" placeholder="Поиск по имени…">
     </div>
-    <div class="lang-switch">
-      <button class="lang-btn" data-lang="ru">RU</button>
-      <button class="lang-btn" data-lang="en">EN</button>
-    </div>
+    <select class="lang-select" id="lang-select"></select>
+    <button class="tbtn icon-only" id="btn-settings" data-i18n-title="settings_title" title="Настройки">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13a7.97 7.97 0 000-2l2.1-1.6-2-3.5-2.5 1a8 8 0 00-1.7-1L14.9 3h-4l-.4 2.9a8 8 0 00-1.7 1l-2.5-1-2 3.5L6.4 11a7.97 7.97 0 000 2l-2.1 1.6 2 3.5 2.5-1a8 8 0 001.7 1l.4 2.9h4l.4-2.9a8 8 0 001.7-1l2.5 1 2-3.5L19.4 13z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+    </button>
   </div>
 
   <div class="body-row">
@@ -160,6 +160,60 @@
   </div>
 </div>
 
+<!-- ============ SETTINGS MODAL ============ -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 data-i18n="settings_title">Настройки</h2>
+      <div class="modal-close" id="settings-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section-title" data-i18n="set_downloads">Загрузка</div>
+      <div class="field">
+        <label for="set-download-dir" data-i18n="set_download_dir">Папка загрузки</label>
+        <input id="set-download-dir" type="text">
+      </div>
+
+      <div class="settings-section-title" data-i18n="set_speed">Скорость</div>
+      <div class="settings-row">
+        <label class="checkbox-row inline"><input type="checkbox" id="set-dl-limit-enabled"> <span data-i18n="set_dl_limit">Ограничить загрузку</span></label>
+        <input type="number" id="set-dl-limit" min="0" class="num-input">
+        <span class="unit-label" data-i18n="kbps">КБ/с</span>
+      </div>
+      <div class="settings-row">
+        <label class="checkbox-row inline"><input type="checkbox" id="set-ul-limit-enabled"> <span data-i18n="set_ul_limit">Ограничить отдачу</span></label>
+        <input type="number" id="set-ul-limit" min="0" class="num-input">
+        <span class="unit-label" data-i18n="kbps">КБ/с</span>
+      </div>
+
+      <div class="settings-section-title" data-i18n="set_seeding">Раздача</div>
+      <div class="settings-row">
+        <label class="checkbox-row inline"><input type="checkbox" id="set-ratio-enabled"> <span data-i18n="set_ratio_limit">Остановить раздачу по рейтингу</span></label>
+        <input type="number" id="set-ratio" min="0" step="0.1" class="num-input">
+      </div>
+
+      <div class="settings-section-title" data-i18n="set_network">Сеть</div>
+      <div class="field">
+        <label for="set-peer-port" data-i18n="set_peer_port">Порт входящих соединений</label>
+        <input id="set-peer-port" type="number" min="1" max="65535">
+      </div>
+      <label class="checkbox-row"><input type="checkbox" id="set-portmap"> <span data-i18n="set_portmap">Автоматическая переадресация портов (UPnP/NAT-PMP)</span></label>
+      <div class="field" style="margin-top:14px">
+        <label for="set-encryption" data-i18n="set_encryption">Шифрование соединений</label>
+        <select id="set-encryption">
+          <option value="tolerated" data-i18n="enc_tolerated">Не требуется</option>
+          <option value="preferred" data-i18n="enc_preferred">Предпочтительно</option>
+          <option value="required" data-i18n="enc_required">Обязательно</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn" id="settings-cancel" data-i18n="modal_cancel">Отмена</button>
+      <button class="mbtn primary" id="settings-save" data-i18n="set_save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ CONTEXT MENU ============ -->
 <div class="ctx-menu" id="ctx-menu">
   <div class="ctx-item" data-action="details"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8h.01M11 12h1v5h1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span data-i18n="ctx_details">Детали</span></div>
@@ -173,7 +227,7 @@
 
 <div class="toast-wrap" id="toast-wrap"></div>
 
-<script src="i18n.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="i18n.js?v=7"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>
