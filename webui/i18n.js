@@ -28,11 +28,12 @@ const I18N = {
     col_size: "Размер",
     col_progress: "Прогресс",
     col_status: "Статус",
+    col_added: "Добавлен",
     col_down: "Загрузка",
     col_up: "Отдача",
     col_eta: "Осталось",
     col_ratio: "Рейтинг",
-    col_peers: "Пиры",
+    col_peers: "Сиды/Пиры",
 
     empty_t1: "Пусто",
     empty_t2: "Добавьте торрент по ссылке-magnet или .torrent-файлом",
@@ -128,6 +129,8 @@ const I18N = {
     eta_inf: "∞", eta_dash: "—",
     eta_s: "с", eta_m: "м", eta_h: "ч", eta_d: "д",
     ratio_inf: "∞",
+    just_now: "только что",
+    ago_suffix: " назад",
   },
 
   en: {
@@ -153,11 +156,12 @@ const I18N = {
     col_size: "Size",
     col_progress: "Progress",
     col_status: "Status",
+    col_added: "Added",
     col_down: "Down",
     col_up: "Up",
     col_eta: "ETA",
     col_ratio: "Ratio",
-    col_peers: "Peers",
+    col_peers: "Seeds/Peers",
 
     empty_t1: "Empty",
     empty_t2: "Add a torrent via magnet link or a .torrent file",
@@ -253,6 +257,8 @@ const I18N = {
     eta_inf: "∞", eta_dash: "—",
     eta_s: "s", eta_m: "m", eta_h: "h", eta_d: "d",
     ratio_inf: "∞",
+    just_now: "just now",
+    ago_suffix: " ago",
   },
 };
 

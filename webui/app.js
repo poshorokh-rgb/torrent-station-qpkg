@@ -73,6 +73,22 @@ function fmtRatio(r) {
   return r.toFixed(2);
 }
 
+function fmtAgo(unixSeconds) {
+  if (!unixSeconds) return t("eta_dash");
+  const diff = Math.floor(Date.now() / 1000) - unixSeconds;
+  if (diff < 60) return t("just_now");
+  if (diff < 3600) return Math.floor(diff / 60) + t("eta_m") + t("ago_suffix");
+  if (diff < 86400) return Math.floor(diff / 3600) + t("eta_h") + t("ago_suffix");
+  if (diff < 2592000) return Math.floor(diff / 86400) + t("eta_d") + t("ago_suffix");
+  const locale = currentLang === "ru" ? "ru-RU" : "en-US";
+  return new Date(unixSeconds * 1000).toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
+/* Tracker-reported seed count, summed across trackers (ignores -1 = unknown) */
+function seedsOf(tor) {
+  return (tor.trackerStats || []).reduce((sum, ts) => sum + (ts.seederCount > 0 ? ts.seederCount : 0), 0);
+}
+
 /* status: 0=stopped 1=check-wait 2=checking 3=dl-wait 4=downloading 5=seed-wait 6=seeding */
 function statusMeta(status) {
   return {
@@ -93,8 +109,8 @@ let torrents = [];
 let selected = new Set();
 let currentFilter = "all";
 let searchTerm = "";
-let sortKey = "name";
-let sortDir = 1;
+let sortKey = "added";
+let sortDir = -1; // newest first
 let pollTimer = null;
 let downloadDirCache = null;
 let lastStats = null;
@@ -119,6 +135,7 @@ const FIELDS = [
   "id", "name", "status", "percentDone", "rateDownload", "rateUpload",
   "eta", "uploadRatio", "peersConnected", "peersSendingToUs", "peersGettingFromUs",
   "totalSize", "sizeWhenDone", "isFinished", "error", "errorString", "downloadDir",
+  "addedDate", "trackerStats",
 ];
 
 async function poll() {
@@ -241,6 +258,7 @@ function sortedFiltered() {
     size: (tor) => tor.totalSize,
     progress: (tor) => tor.percentDone,
     status: (tor) => tor.status,
+    added: (tor) => tor.addedDate,
     down: (tor) => tor.rateDownload,
     up: (tor) => tor.rateUpload,
     eta: (tor) => (tor.eta < 0 ? Infinity : tor.eta),
@@ -286,11 +304,12 @@ function rowHtml(tor) {
         </div>
       </td>
       <td><span class="status-pill"><span class="dot ${isError ? "error" : meta.dot}"></span>${isError ? t("st_error") : meta.label}</span></td>
+      <td class="num" title="${escapeHtml(fmtDate(tor.addedDate))}">${fmtAgo(tor.addedDate)}</td>
       <td class="num ${tor.rateDownload ? "rate-down" : "rate-zero"}">${tor.rateDownload ? fmtRate(tor.rateDownload) : "—"}</td>
       <td class="num ${tor.rateUpload ? "rate-up" : "rate-zero"}">${tor.rateUpload ? fmtRate(tor.rateUpload) : "—"}</td>
       <td class="num">${tor.status === 4 ? fmtEta(tor.eta) : "—"}</td>
       <td class="num">${fmtRatio(tor.uploadRatio)}</td>
-      <td class="num">${tor.peersConnected}</td>
+      <td class="num">${seedsOf(tor)}/${tor.peersConnected}</td>
     </tr>`;
 }
 
@@ -361,17 +380,21 @@ function confirmRemove(deleteData) {
 /* ==========================================================================
    SORT / FILTER / SEARCH
    ========================================================================== */
+function markSortIndicator() {
+  document.querySelectorAll("th[data-sort]").forEach((h) => {
+    const active = h.dataset.sort === sortKey;
+    h.classList.toggle("sorted", active);
+    h.querySelector(".arrow").textContent = active ? (sortDir === 1 ? "↑" : "↓") : "";
+  });
+}
+markSortIndicator();
+
 document.querySelectorAll("th[data-sort]").forEach((th) => {
   th.addEventListener("click", () => {
     const key = th.dataset.sort;
     if (sortKey === key) sortDir *= -1;
     else { sortKey = key; sortDir = 1; }
-    document.querySelectorAll("th[data-sort]").forEach((h) => {
-      h.classList.remove("sorted");
-      h.querySelector(".arrow").textContent = "";
-    });
-    th.classList.add("sorted");
-    th.querySelector(".arrow").textContent = sortDir === 1 ? "↑" : "↓";
+    markSortIndicator();
     renderTable();
   });
 });
