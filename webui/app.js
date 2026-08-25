@@ -380,10 +380,14 @@ els.body.addEventListener("click", (e) => {
     selected.has(id) ? selected.delete(id) : selected.add(id);
   } else {
     selected = new Set([id]);
-    openDetails(id);
   }
   lastClickedId = id;
   renderTable();
+});
+
+els.body.addEventListener("dblclick", (e) => {
+  const tr = e.target.closest("tr[data-id]");
+  if (tr) openDetails(Number(tr.dataset.id));
 });
 
 function updateToolbarState() {
@@ -391,7 +395,6 @@ function updateToolbarState() {
   document.getElementById("btn-resume").disabled = !has;
   document.getElementById("btn-pause").disabled = !has;
   document.getElementById("btn-remove").disabled = !has;
-  document.getElementById("btn-categories").disabled = !has;
 }
 
 /* ==========================================================================
@@ -420,7 +423,7 @@ const categoriesInput = document.getElementById("categories-input");
 const categoriesClear = document.getElementById("categories-clear");
 
 function openCategories() {
-  if (!selected.size) return;
+  if (!selected.size) { toast(t("categories_select_first"), "error"); return; }
   const picked = torrents.filter((tor) => selected.has(tor.id));
   const first = picked[0] || { labels: [] };
   const sameLabels = picked.every((tor) => JSON.stringify(tor.labels || []) === JSON.stringify(first.labels || []));
