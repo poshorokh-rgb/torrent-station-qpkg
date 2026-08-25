@@ -98,6 +98,8 @@ const I18N = {
     priority_low: "Низкий",
     priority_normal: "Обычный",
     priority_high: "Высокий",
+    priority_first: "First — скачать первым",
+    priority_first_active: "First включён: остальные файлы переведены в Skip",
 
     theme_toggle: "Тема",
     settings_title: "Настройки",
@@ -262,6 +264,8 @@ const I18N = {
     priority_low: "Low",
     priority_normal: "Normal",
     priority_high: "High",
+    priority_first: "First — download first",
+    priority_first_active: "First is active: other files were set to Skip",
 
     theme_toggle: "Theme",
     settings_title: "Settings",

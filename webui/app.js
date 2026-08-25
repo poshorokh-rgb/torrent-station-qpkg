@@ -722,6 +722,8 @@ const DETAIL_FIELDS = [
 
 let currentDetailsId = null;
 let detailsTimer = null;
+let currentDetailsFileCount = 0;
+const firstPriorityTargets = new Map();
 
 // While a priority <select> is open/focused, skip the periodic refresh —
 // replacing the file rows out from under an open native dropdown can
@@ -751,6 +753,7 @@ async function fetchDetails() {
     const data = await rpc("torrent-get", { ids: [currentDetailsId], fields: DETAIL_FIELDS });
     const tor = data.torrents[0];
     if (!tor) { closeDetails(); return; }
+    currentDetailsFileCount = (tor.files || []).length;
     detailsTitle.textContent = tor.name;
     renderDetailsGeneral(tor);
     renderDetailsFiles(tor);
@@ -807,7 +810,8 @@ function renderDetailsFiles(tor) {
   fileRowsEl.innerHTML = files.map((f, i) => {
     const st = stats[i] || { bytesCompleted: 0, wanted: true, priority: 0 };
     const pct = f.length ? Math.round((st.bytesCompleted / f.length) * 100) : 0;
-    const value = !st.wanted ? "skip" : st.priority === 1 ? "high" : st.priority === -1 ? "low" : "normal";
+    const isFirst = firstPriorityTargets.get(currentDetailsId) === i;
+    const value = isFirst ? "first" : !st.wanted ? "skip" : st.priority === 1 ? "high" : st.priority === -1 ? "low" : "normal";
     return `
       <div class="file-row${!st.wanted ? " skipped" : ""}" data-idx="${i}">
         <div class="f-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
@@ -820,6 +824,7 @@ function renderDetailsFiles(tor) {
           <option value="low"${value === "low" ? " selected" : ""}>${escapeHtml(t("priority_low"))}</option>
           <option value="normal"${value === "normal" ? " selected" : ""}>${escapeHtml(t("priority_normal"))}</option>
           <option value="high"${value === "high" ? " selected" : ""}>${escapeHtml(t("priority_high"))}</option>
+          <option value="first"${value === "first" ? " selected" : ""}>${escapeHtml(t("priority_first"))}</option>
         </select>
       </div>`;
   }).join("");
@@ -827,6 +832,24 @@ function renderDetailsFiles(tor) {
 
 async function setFilePriority(idx, value) {
   if (currentDetailsId == null) return;
+  if (value === "first") {
+    const otherFiles = Array.from({ length: currentDetailsFileCount }, (_, i) => i).filter((i) => i !== idx);
+    try {
+      await rpc("torrent-set", {
+        ids: [currentDetailsId],
+        "files-wanted": [idx],
+        "priority-high": [idx],
+        "files-unwanted": otherFiles,
+      });
+      firstPriorityTargets.set(currentDetailsId, idx);
+      toast(t("priority_first_active"), "success");
+      fetchDetails();
+    } catch (e) {
+      toast(t("toast_error") + e.message, "error");
+    }
+    return;
+  }
+  if (firstPriorityTargets.get(currentDetailsId) === idx) firstPriorityTargets.delete(currentDetailsId);
   const args = { ids: [currentDetailsId] };
   if (value === "skip") {
     args["files-unwanted"] = [idx];
