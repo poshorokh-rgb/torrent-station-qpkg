@@ -635,6 +635,7 @@ td.name-cell .fname {
 .settings-row .num-input:focus { outline: none; border-color: var(--accent); }
 .settings-row .num-input:disabled { opacity: 0.4; }
 .settings-row .unit-label { font-size: 11px; color: var(--text-dim); }
+.field-note { margin: 7px 0 0; color: var(--text-dim); font-size: 12px; line-height: 1.45; }
 
 .modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 20px; border-top: 1px solid var(--line); }
 .mbtn {

@@ -116,6 +116,11 @@ const I18N = {
     enc_tolerated: "Не требуется",
     enc_preferred: "Предпочтительно",
     enc_required: "Обязательно",
+    set_security: "Безопасность",
+    set_password: "Новый пароль для входа",
+    set_password_confirm: "Повторите новый пароль",
+    set_password_ph: "Оставьте пустым, чтобы не менять",
+    set_password_note: "После сохранения понадобится войти заново с новым паролем.",
     set_save: "Сохранить",
 
     history_title: "История",
@@ -143,6 +148,9 @@ const I18N = {
     toast_invalid_path: "Укажите существующую папку внутри /share",
     toast_invalid_category: "Категория не должна содержать переносы строк",
     toast_invalid_settings: "Проверьте значения лимитов и входящего порта",
+    toast_password_mismatch: "Новые пароли не совпадают",
+    toast_password_short: "Пароль должен содержать не менее 12 символов",
+    toast_password_changed: "Пароль изменён. Войдите снова…",
     toast_reauth: "Сессия истекла, обновляем страницу…",
 
     remove_title: "Удалить торрент?",
@@ -271,6 +279,11 @@ const I18N = {
     enc_tolerated: "Not required",
     enc_preferred: "Preferred",
     enc_required: "Required",
+    set_security: "Security",
+    set_password: "New sign-in password",
+    set_password_confirm: "Repeat new password",
+    set_password_ph: "Leave blank to keep the current password",
+    set_password_note: "After saving, you will need to sign in again with the new password.",
     set_save: "Save",
 
     history_title: "History",
@@ -298,6 +311,9 @@ const I18N = {
     toast_invalid_path: "Choose a valid folder inside /share",
     toast_invalid_category: "A category cannot contain line breaks",
     toast_invalid_settings: "Check the limits and incoming port",
+    toast_password_mismatch: "The new passwords do not match",
+    toast_password_short: "Use at least 12 characters for the password",
+    toast_password_changed: "Password changed. Sign in again…",
     toast_reauth: "Session expired, reloading…",
 
     remove_title: "Remove torrent?",
