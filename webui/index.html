@@ -46,6 +46,10 @@
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span data-i18n="tb_remove">Удалить</span>
       </button>
+      <button type="button" class="tbtn" id="btn-categories" disabled>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A1.5 1.5 0 015.5 4h5l2 2h6A1.5 1.5 0 0120 7.5v11a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18.5v-13z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span data-i18n="tb_categories">Категории</span>
+      </button>
     </div>
     <div class="topbar-spacer"></div>
     <div class="search-box">
@@ -155,7 +159,8 @@
       <div class="add-options">
         <div class="field">
           <label for="add-labels" data-i18n="add_category">Категория / метки</label>
-          <input id="add-labels" type="text" maxlength="120" data-i18n-placeholder="add_category_ph" placeholder="Например: Фильмы, 4K">
+          <input id="add-labels" type="text" maxlength="120" list="category-suggestions" data-i18n-placeholder="add_category_ph" placeholder="Например: Фильмы, 4K">
+          <datalist id="category-suggestions"></datalist>
           <div class="field-hint" data-i18n="add_category_hint">Метки сохраняются в Transmission и видны с любого устройства.</div>
         </div>
         <div class="field">
@@ -174,6 +179,29 @@
     <div class="modal-foot">
       <button class="mbtn" id="modal-cancel" data-i18n="modal_cancel">Отмена</button>
       <button class="mbtn primary" id="modal-submit" data-i18n="modal_submit">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CATEGORY EDITOR ============ -->
+<div class="modal-overlay" id="modal-categories" role="dialog" aria-modal="true" aria-labelledby="categories-dialog-title">
+  <div class="modal modal-narrow">
+    <div class="modal-head">
+      <h2 id="categories-dialog-title" data-i18n="categories_title">Изменить категории</h2>
+      <button type="button" class="modal-close" id="categories-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p class="category-target" id="categories-target"></p>
+      <div class="field">
+        <label for="categories-input" data-i18n="categories_labels">Категории / метки</label>
+        <input id="categories-input" type="text" maxlength="120" list="category-suggestions" data-i18n-placeholder="add_category_ph" placeholder="Например: Фильмы, 4K">
+        <div class="field-hint" data-i18n="categories_replace_note">Список полностью заменит текущие категории выбранных торрентов.</div>
+      </div>
+      <label class="checkbox-row"><input type="checkbox" id="categories-clear"> <span data-i18n="categories_clear">Убрать все категории</span></label>
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn" id="categories-cancel" data-i18n="modal_cancel">Отмена</button>
+      <button class="mbtn primary" id="categories-save" data-i18n="set_save">Сохранить</button>
     </div>
   </div>
 </div>

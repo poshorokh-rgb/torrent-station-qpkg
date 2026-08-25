@@ -328,6 +328,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .label-filter.active { background:var(--bg-raised); border-left-color:var(--accent); color:var(--text-hi); }
 .label-filter .label-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
 .label-filter .count { color:var(--text-faint); font-variant-numeric:tabular-nums; }
+.modal-narrow { width: min(460px, calc(100vw - 28px)); }
+.category-target { margin: 0 0 16px; color: var(--text-dim); font-size: 12px; }
 
 /* ---- Table ---- */
 .table-wrap { flex: 1; overflow: auto; position: relative; }

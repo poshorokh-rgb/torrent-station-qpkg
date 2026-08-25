@@ -265,6 +265,8 @@ function renderLabelFilters() {
       <span class="dot ${label ? "active" : "paused"}"></span><span class="label-name">${escapeHtml(label || t("sb_uncategorized"))}</span><span class="count">${count}</span>
     </div>`).join("");
   if (currentLabelFilter !== null && !counts.has(currentLabelFilter) && currentLabelFilter !== "") currentLabelFilter = null;
+  document.getElementById("category-suggestions").innerHTML = items
+    .map(([label]) => `<option value="${escapeHtml(label)}"></option>`).join("");
 }
 
 /* ==========================================================================
@@ -389,6 +391,7 @@ function updateToolbarState() {
   document.getElementById("btn-resume").disabled = !has;
   document.getElementById("btn-pause").disabled = !has;
   document.getElementById("btn-remove").disabled = !has;
+  document.getElementById("btn-categories").disabled = !has;
 }
 
 /* ==========================================================================
@@ -397,6 +400,7 @@ function updateToolbarState() {
 document.getElementById("btn-resume").addEventListener("click", () => act("torrent-start"));
 document.getElementById("btn-pause").addEventListener("click", () => act("torrent-stop"));
 document.getElementById("btn-remove").addEventListener("click", () => openRemoveConfirm(false));
+document.getElementById("btn-categories").addEventListener("click", openCategories);
 
 async function act(method, extra = {}) {
   if (!selected.size) return;
@@ -408,6 +412,48 @@ async function act(method, extra = {}) {
     toast(t("toast_error") + e.message, "error");
   }
 }
+
+/* Categories are Transmission labels. Editing them here writes directly to
+   the selected torrents, so the result is shared with other clients too. */
+const modalCategories = document.getElementById("modal-categories");
+const categoriesInput = document.getElementById("categories-input");
+const categoriesClear = document.getElementById("categories-clear");
+
+function openCategories() {
+  if (!selected.size) return;
+  const picked = torrents.filter((tor) => selected.has(tor.id));
+  const first = picked[0] || { labels: [] };
+  const sameLabels = picked.every((tor) => JSON.stringify(tor.labels || []) === JSON.stringify(first.labels || []));
+  categoriesInput.value = sameLabels ? (first.labels || []).join(", ") : "";
+  categoriesInput.placeholder = sameLabels ? t("add_category_ph") : t("categories_mixed_ph");
+  categoriesClear.checked = false;
+  categoriesInput.disabled = false;
+  document.getElementById("categories-target").textContent = tf("categories_target", selected.size);
+  modalCategories.classList.add("show");
+  setTimeout(() => categoriesInput.focus(), 50);
+}
+function closeCategories() { modalCategories.classList.remove("show"); }
+
+document.getElementById("categories-close").addEventListener("click", closeCategories);
+document.getElementById("categories-cancel").addEventListener("click", closeCategories);
+modalCategories.addEventListener("click", (e) => { if (e.target === modalCategories) closeCategories(); });
+categoriesClear.addEventListener("change", () => {
+  categoriesInput.disabled = categoriesClear.checked;
+  if (categoriesClear.checked) categoriesInput.value = "";
+});
+document.getElementById("categories-save").addEventListener("click", async () => {
+  const source = categoriesInput.value.trim();
+  if (/\r|\n/.test(source)) { toast(t("toast_invalid_category"), "error"); return; }
+  const labels = categoriesClear.checked ? [] : labelsFromInput(source);
+  try {
+    await rpc("torrent-set", { ids: Array.from(selected), labels });
+    closeCategories();
+    toast(t("categories_saved"), "success");
+    poll();
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  }
+});
 
 /* Remove confirmation: single flow, checkbox opts into deleting local data.
    Unchecked by default — removing a torrent only drops it from the list,
@@ -1148,7 +1194,7 @@ startPolling();
 
 /* keyboard: Escape closes modal/menu, Delete removes selection */
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeModal(); closeDetails(); closeSettings(); closeHistory(); closeRemoveConfirm(); closeFolderPicker(); ctxMenu.classList.remove("show"); }
+  if (e.key === "Escape") { closeModal(); closeDetails(); closeSettings(); closeHistory(); closeRemoveConfirm(); closeCategories(); closeFolderPicker(); ctxMenu.classList.remove("show"); }
   if (e.key === "Delete" && selected.size && app.classList.contains("active") && !modal.classList.contains("show") && !modalDetails.classList.contains("show")) {
     openRemoveConfirm(false);
   }
