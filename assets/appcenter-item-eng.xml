@@ -1,0 +1,16 @@
+  <item>
+    <name><![CDATA[Torrent Station]]></name>
+    <internalName>TorrentStation</internalName>
+    <category>Download</category>
+    <description><![CDATA[A self-contained BitTorrent client for QNAP NAS. Add magnet links and torrent files, organize downloads with labels and folders, set speed and seeding limits, and manage everything from a fast, private web interface. No Entware required.]]></description>
+    <developer><![CDATA[Pavel Shorokh]]></developer>
+    <maintainer><![CDATA[Pavel Shorokh]]></maintainer>
+    <icon80>/RSS/images/TorrentStation_80.gif</icon80>
+    <snapshot>/RSS/images/TorrentStation_640x400.png</snapshot>
+    <keyword>Torrent, BitTorrent, Transmission, Download, NAS</keyword>
+    <language><![CDATA[English, Russian]]></language>
+    <type>Utilities</type>
+    <publishedDate>2026/08/24</publishedDate>
+    <version>1.1.14</version>
+    <volumeSelect>0</volumeSelect>
+  </item>

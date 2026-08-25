@@ -170,6 +170,11 @@ body {
 
 button { font-family: inherit; font-size: inherit; color: inherit; }
 input { font-family: inherit; font-size: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 /* Grain overlay for texture */
 .grain {
@@ -201,6 +206,7 @@ input { font-family: inherit; font-size: inherit; color: inherit; }
 }
 
 .brand { display: flex; align-items: center; gap: 9px; padding-right: 14px; border-right: 1px solid var(--line); height: 28px; }
+.version-badge { padding: 3px 6px; border: 1px solid var(--line); border-radius: 99px; color: var(--text-dim); font-size: 9px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
 .brand svg { width: 22px; height: 22px; color: var(--accent); }
 .brand .wordmark { font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; }
 .brand .wordmark span { color: var(--accent); }
@@ -304,6 +310,7 @@ input { font-family: inherit; font-size: inherit; color: inherit; }
 .sidebar-item .dot { width: 6px; height: 6px; border-radius: 50%; margin-right: 9px; flex-shrink: 0; }
 .sidebar-item .name { display: flex; align-items: center; flex: 1; }
 .sidebar-item .count { font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.label-chip { display:inline-flex; align-items:center; margin:5px 4px 0 0; padding:2px 6px; border:1px solid var(--line); border-radius:99px; color:var(--accent); font-size:9px; letter-spacing:.05em; text-transform:uppercase; }
 .sidebar-item.active .count { color: var(--accent); }
 
 .dot.all { background: var(--text-mid); }
@@ -315,6 +322,12 @@ input { font-family: inherit; font-size: inherit; color: inherit; }
 .dot.active { background: var(--green); }
 
 .sidebar-divider { height: 1px; background: var(--line); margin: 14px 18px; }
+.label-filters { padding: 0 8px 12px; max-height: 190px; overflow-y: auto; }
+.label-filter { display:flex; align-items:center; gap:8px; padding:7px 10px; color:var(--text-mid); font-size:11.5px; cursor:pointer; border-left:2px solid transparent; border-radius:var(--radius); }
+.label-filter:hover { background:var(--bg-hover); color:var(--text-hi); }
+.label-filter.active { background:var(--bg-raised); border-left-color:var(--accent); color:var(--text-hi); }
+.label-filter .label-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.label-filter .count { color:var(--text-faint); font-variant-numeric:tabular-nums; }
 
 /* ---- Table ---- */
 .table-wrap { flex: 1; overflow: auto; position: relative; }
@@ -468,7 +481,7 @@ td.name-cell .fname {
   padding: 18px 20px; border-bottom: 1px solid var(--line);
 }
 .modal-head h2 { font-family: var(--font-display); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-.modal-close { cursor: pointer; color: var(--text-dim); width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius); }
+.modal-close { cursor: pointer; color: var(--text-dim); width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; border-radius: var(--radius); }
 .modal-close:hover { color: var(--text-hi); background: var(--bg-hover); }
 .modal-close svg { width: 16px; height: 16px; }
 
@@ -489,6 +502,11 @@ td.name-cell .fname {
   padding: 10px 12px; font-size: 12px; color: var(--text-hi);
 }
 .modal textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.add-options { margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line); }
+.add-options .field { margin-bottom: 13px; }
+.field-hint { margin-top: 6px; font-size: 10.5px; line-height: 1.35; color: var(--text-dim); }
+.checkbox-row.compact { margin-top: 10px; font-size: 11.5px; }
+.settings-row.compact { margin: 12px 0 0; }
 
 .dropzone {
   border: 1px dashed var(--line-bright); border-radius: var(--radius);
@@ -530,8 +548,71 @@ td.name-cell .fname {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
+/* A checkbox-row's outer element is itself a <label>, so the generic
+   ".field label" heading style above (uppercase/block/10px) would otherwise
+   apply to it too and beat ".checkbox-row"'s flex layout on specificity
+   (class+type > class alone) — override it back explicitly here. */
+.field .checkbox-row {
+  display: flex;
+  text-transform: none;
+  font-size: 12px;
+  letter-spacing: normal;
+  color: var(--text-mid);
+  margin-bottom: 7px;
+}
+/* Same specificity problem as above, this time for the checkbox itself:
+   ".field input" (width:100%) has the same specificity as ".checkbox-row
+   input" (width:14px) and comes later in the file, so it was winning and
+   stretching the checkbox's layout box across the whole row. */
+.field .checkbox-row input {
+  width: 14px;
+  height: 14px;
+}
+
+/* ---- Path field + "Browse…" button (Settings: download/incomplete/watch dir) ---- */
+.path-row { display: flex; gap: 8px; }
+.field .path-row input { width: auto; flex: 1; min-width: 0; }
+.path-row .browse-btn { flex-shrink: 0; white-space: nowrap; }
+
+/* ---- Folder picker modal ---- */
+.folder-breadcrumb {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px;
+  font-size: 12px; color: var(--text-mid);
+  padding: 8px 10px; margin-bottom: 10px;
+  background: var(--bg-void); border: 1px solid var(--line); border-radius: var(--radius);
+}
+.folder-breadcrumb .crumb {
+  padding: 2px 5px; border-radius: 4px; cursor: pointer;
+  color: var(--accent);
+}
+.folder-breadcrumb .crumb:hover { background: var(--accent-glow); }
+.folder-breadcrumb .crumb:last-child { color: var(--text-hi); font-weight: 600; cursor: default; }
+.folder-breadcrumb .crumb:last-child:hover { background: none; }
+.folder-breadcrumb .crumb-sep { color: var(--text-dim); }
+
+.folder-list { max-height: 320px; overflow-y: auto; }
+.folder-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 8px; border-radius: var(--radius);
+  font-size: 12.5px; color: var(--text-hi); cursor: pointer;
+}
+.folder-row:hover { background: var(--bg-raised); }
+.folder-row svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
 
 /* ---- Settings modal ---- */
+#modal-settings .modal {
+  max-height: calc(100dvh - 28px);
+  display: flex;
+  flex-direction: column;
+}
+#modal-settings .modal-head,
+#modal-settings .modal-foot { flex: 0 0 auto; }
+#modal-settings .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
 .settings-section-title {
   font-family: var(--font-display); font-weight: 700; font-size: 11px;
   text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
@@ -563,8 +644,20 @@ td.name-cell .fname {
 .mbtn:hover { color: var(--text-hi); border-color: var(--line-bright); }
 .mbtn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .mbtn.primary:hover { background: var(--accent-hover); }
+.mbtn.danger { background: var(--red); border-color: var(--red); color: var(--accent-ink); font-weight: 600; }
+.mbtn.danger:hover { background: var(--red-dim); color: var(--danger-hover-fg); }
 .mbtn:disabled { opacity: 0.4; cursor: not-allowed; }
 .mbtn.tiny { padding: 5px 10px; font-size: 11px; }
+
+/* ---- Remove-confirm modal ---- */
+.remove-msg { font-size: 13px; color: var(--text-mid); }
+.remove-warning {
+  display: none;
+  margin-top: 10px; padding: 8px 10px;
+  font-size: 11.5px; color: var(--red);
+  background: var(--red-dim); border-radius: var(--radius);
+}
+.remove-warning.show { display: block; }
 
 /* ---- Details panel — docked to the bottom of the screen, above the status bar ---- */
 .details-panel {
@@ -688,3 +781,74 @@ td.name-cell .fname {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line-bright); border-radius: 5px; border: 2px solid var(--bg-panel); }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+/* ---- Compact layouts: the NAS UI stays usable on a tablet or phone without
+   turning the dense table into stacked, hard-to-scan cards. ---- */
+@media (max-width: 980px) {
+  :root { --sidebar-w: 184px; }
+  .topbar { gap: 10px; padding: 0 12px; }
+  .search-box { width: 180px; }
+  table.torrents th:nth-child(5), table.torrents td:nth-child(5),
+  table.torrents th:nth-child(9), table.torrents td:nth-child(9) { display: none; }
+}
+
+@media (max-width: 760px) {
+  :root { --header-h: auto; --statusbar-h: 36px; }
+  .topbar {
+    min-height: 60px;
+    padding: 10px 12px;
+    flex-wrap: wrap;
+    align-content: center;
+  }
+  .brand { padding-right: 9px; }
+  .toolbar { order: 2; }
+  .topbar-spacer { display: none; }
+  .search-box { order: 4; width: 100%; }
+  .lang-select { order: 3; margin-left: auto; }
+  #theme-toggle, #btn-history, #btn-settings { order: 3; }
+
+  .body-row { flex-direction: column; }
+  .sidebar {
+    width: 100%; min-height: 0;
+    display: flex; align-items: center;
+    padding: 7px 6px;
+    overflow-x: auto; overflow-y: hidden;
+    border-right: 0; border-bottom: 1px solid var(--line);
+  }
+  .sidebar-label, .sidebar-divider, #free-space, .label-filters { display: none; }
+  .sidebar-item { flex: 0 0 auto; padding: 7px 10px; border-left: 0; border-bottom: 2px solid transparent; }
+  .sidebar-item.active { border-left-color: transparent; border-bottom-color: var(--accent); }
+  .sidebar-item .count { margin-left: 7px; }
+
+  .table-wrap { width: 100%; }
+  table.torrents { min-width: 690px; }
+  table.torrents th, table.torrents td { padding: 9px 10px; }
+  table.torrents th:nth-child(6), table.torrents td:nth-child(6),
+  table.torrents th:nth-child(7), table.torrents td:nth-child(7) { display: none; }
+
+  .statusbar { gap: 12px; padding: 0 12px; }
+  .statusbar .sep:nth-of-type(2), .statusbar-spacer, #stat-version { display: none; }
+  .details-panel.show { height: min(68vh, 520px); }
+  #modal-settings .modal { max-height: calc(100dvh - 16px); }
+  .file-row { grid-template-columns: 1fr 96px; gap: 7px 10px; }
+  .file-row .f-progress { grid-column: 1 / -1; }
+}
+
+@media (max-width: 460px) {
+  .brand { border-right: 0; padding-right: 0; }
+  .toolbar { width: 100%; }
+  .toolbar .tbtn { padding: 0 10px; }
+  .toolbar .tbtn:not(.primary) span { display: none; }
+  .toolbar .tbtn:not(.primary) { width: 34px; justify-content: center; }
+  .topbar > .tbtn.icon-only { width: 31px; }
+  .modal { max-width: calc(100vw - 20px); }
+  .modal-body, .modal-head, .modal-foot { padding-left: 14px; padding-right: 14px; }
+  .path-row { align-items: stretch; }
+  .path-row .browse-btn { padding-left: 8px; padding-right: 8px; }
+  .history-row .h-event { display: none; }
+  .history-row .h-time { font-size: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}

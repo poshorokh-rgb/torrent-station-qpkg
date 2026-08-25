@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Generate minimal placeholder PNG icons for the QPKG (no PIL dependency).
-Draws a simple flat-color square with a lighter downward-arrow glyph.
-Replace icons/icon_*.png with real artwork later if desired.
+"""Legacy placeholder icon generator for the QPKG (no PIL dependency).
+
+The released application artwork lives in icons/torrentstation-mark.png and
+the derived QTS sizes icons/icon_64.png and icons/icon_80.png. Keep this
+script only as a dependency-free fallback for development environments.
 """
 import struct
 import zlib

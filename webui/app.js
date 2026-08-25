@@ -23,11 +23,13 @@ async function rpc(method, args = {}, _retried = false) {
     method: "POST",
     headers,
     body: JSON.stringify({ method, arguments: args }),
+    credentials: "same-origin",
+    cache: "no-store",
   });
 
   if (res.status === 409) {
     sessionId = res.headers.get("X-Transmission-Session-Id");
-    if (!_retried) return rpc(method, args, true);
+    if (sessionId && !_retried) return rpc(method, args, true);
     throw new Error("CSRF handshake failed");
   }
   if (res.status === 401) {
@@ -37,7 +39,9 @@ async function rpc(method, args = {}, _retried = false) {
   }
   if (!res.ok) throw new Error("RPC HTTP " + res.status);
 
-  const data = await res.json();
+  let data;
+  try { data = await res.json(); }
+  catch (e) { throw new Error("Invalid RPC response"); }
   if (data.result !== "success") throw new Error(data.result || "RPC error");
   return data.arguments;
 }
@@ -46,6 +50,7 @@ async function rpc(method, args = {}, _retried = false) {
    APP ENTRY
    ========================================================================== */
 const app = document.getElementById("app");
+document.getElementById("app-version").textContent = "v" + (window.TORRENT_STATION_VERSION || "—");
 
 /* ==========================================================================
    FORMATTERS
@@ -108,10 +113,13 @@ function statusMeta(status) {
 let torrents = [];
 let selected = new Set();
 let currentFilter = "all";
+let currentLabelFilter = null;
 let searchTerm = "";
 let sortKey = "added";
 let sortDir = -1; // newest first
 let pollTimer = null;
+let freeSpaceTimer = null;
+let pollInFlight = false;
 let downloadDirCache = null;
 let lastStats = null;
 let lastFreeBytes = null;
@@ -135,10 +143,12 @@ const FIELDS = [
   "id", "name", "status", "percentDone", "rateDownload", "rateUpload",
   "eta", "uploadRatio", "peersConnected", "peersSendingToUs", "peersGettingFromUs",
   "totalSize", "sizeWhenDone", "isFinished", "error", "errorString", "downloadDir",
-  "addedDate", "trackerStats",
+  "addedDate", "trackerStats", "labels",
 ];
 
 async function poll() {
+  if (pollInFlight) return;
+  pollInFlight = true;
   try {
     const [tArgs, stats] = await Promise.all([
       rpc("torrent-get", { fields: FIELDS }),
@@ -148,6 +158,7 @@ async function poll() {
     setConn(true);
     renderStats(stats);
     renderSidebarCounts();
+    renderLabelFilters();
     renderTable();
 
     if (!downloadDirCache) {
@@ -166,6 +177,8 @@ async function poll() {
       return;
     }
     setConn(false);
+  } finally {
+    pollInFlight = false;
   }
 }
 
@@ -197,11 +210,13 @@ function onLangChanged() {
 function startPolling() {
   poll();
   pollTimer = setInterval(poll, 2000);
-  setInterval(refreshFreeSpace, 15000);
+  freeSpaceTimer = setInterval(refreshFreeSpace, 15000);
 }
 function stopPolling() {
   if (pollTimer) clearInterval(pollTimer);
+  if (freeSpaceTimer) clearInterval(freeSpaceTimer);
   pollTimer = null;
+  freeSpaceTimer = null;
 }
 
 /* ==========================================================================
@@ -231,10 +246,35 @@ function renderSidebarCounts() {
   }
 }
 
+/* Labels are a first-class Transmission 3+ feature, so categories do not
+   live in localStorage: they remain available in every web client. */
+function renderLabelFilters() {
+  const counts = new Map();
+  let uncategorized = 0;
+  for (const tor of torrents) {
+    const labels = Array.isArray(tor.labels) ? tor.labels : [];
+    if (!labels.length) uncategorized++;
+    for (const label of labels) counts.set(label, (counts.get(label) || 0) + 1);
+  }
+  const items = [...counts.entries()].sort(([a], [b]) => a.localeCompare(b, currentLang));
+  const out = document.getElementById("label-filters");
+  out.innerHTML = [
+    ...(uncategorized ? [["", uncategorized]] : []),
+    ...items,
+  ].map(([label, count]) => `<div class="label-filter${currentLabelFilter === label ? " active" : ""}" data-label="${escapeHtml(label)}" title="${escapeHtml(label || t("sb_uncategorized"))}">
+      <span class="dot ${label ? "active" : "paused"}"></span><span class="label-name">${escapeHtml(label || t("sb_uncategorized"))}</span><span class="count">${count}</span>
+    </div>`).join("");
+  if (currentLabelFilter !== null && !counts.has(currentLabelFilter) && currentLabelFilter !== "") currentLabelFilter = null;
+}
+
 /* ==========================================================================
    RENDER: table
    ========================================================================== */
 function matchesFilter(tor) {
+  if (currentLabelFilter !== null) {
+    const labels = Array.isArray(tor.labels) ? tor.labels : [];
+    if (currentLabelFilter ? !labels.includes(currentLabelFilter) : labels.length) return false;
+  }
   switch (currentFilter) {
     case "downloading": return tor.status === 4;
     case "seeding": return tor.status === 6;
@@ -295,7 +335,7 @@ function rowHtml(tor) {
   const errBadge = isError ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
   return `
     <tr class="${isSel}" data-id="${tor.id}">
-      <td class="name-cell"${errBadge}><div class="fname">${escapeHtml(tor.name)}</div></td>
+      <td class="name-cell"${errBadge}><div class="fname">${escapeHtml(tor.name)}</div>${(tor.labels || []).map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")}</td>
       <td class="num">${fmtBytes(tor.totalSize)}</td>
       <td>
         <div class="progress-track">
@@ -356,7 +396,7 @@ function updateToolbarState() {
    ========================================================================== */
 document.getElementById("btn-resume").addEventListener("click", () => act("torrent-start"));
 document.getElementById("btn-pause").addEventListener("click", () => act("torrent-stop"));
-document.getElementById("btn-remove").addEventListener("click", () => confirmRemove(false));
+document.getElementById("btn-remove").addEventListener("click", () => openRemoveConfirm(false));
 
 async function act(method, extra = {}) {
   if (!selected.size) return;
@@ -369,13 +409,34 @@ async function act(method, extra = {}) {
   }
 }
 
-function confirmRemove(deleteData) {
+/* Remove confirmation: single flow, checkbox opts into deleting local data.
+   Unchecked by default — removing a torrent only drops it from the list,
+   the downloaded content stays on disk. */
+const modalRemove = document.getElementById("modal-remove");
+const removeMsgEl = document.getElementById("remove-msg");
+const removeDataCheckbox = document.getElementById("remove-delete-data");
+const removeWarningEl = document.getElementById("remove-warning");
+
+function openRemoveConfirm(deleteDataDefault = false) {
   if (!selected.size) return;
-  const n = selected.size;
-  const msg = deleteData ? tf("confirm_remove_data", n) : tf("confirm_remove", n);
-  if (!confirm(msg)) return;
-  act("torrent-remove", { "delete-local-data": deleteData });
+  removeMsgEl.textContent = tf("remove_msg", selected.size);
+  removeDataCheckbox.checked = deleteDataDefault;
+  removeWarningEl.classList.toggle("show", deleteDataDefault);
+  modalRemove.classList.add("show");
 }
+function closeRemoveConfirm() { modalRemove.classList.remove("show"); }
+
+removeDataCheckbox.addEventListener("change", () => {
+  removeWarningEl.classList.toggle("show", removeDataCheckbox.checked);
+});
+document.getElementById("remove-close").addEventListener("click", closeRemoveConfirm);
+document.getElementById("remove-cancel").addEventListener("click", closeRemoveConfirm);
+modalRemove.addEventListener("click", (e) => { if (e.target === modalRemove) closeRemoveConfirm(); });
+document.getElementById("remove-submit").addEventListener("click", () => {
+  const deleteData = removeDataCheckbox.checked;
+  closeRemoveConfirm();
+  act("torrent-remove", { "delete-local-data": deleteData });
+});
 
 /* ==========================================================================
    SORT / FILTER / SEARCH
@@ -405,6 +466,18 @@ document.getElementById("sidebar").addEventListener("click", (e) => {
   document.querySelectorAll(".sidebar-item").forEach((i) => i.classList.remove("active"));
   item.classList.add("active");
   currentFilter = item.dataset.filter;
+  currentLabelFilter = null;
+  renderLabelFilters();
+  renderTable();
+});
+
+document.getElementById("label-filters").addEventListener("click", (e) => {
+  const item = e.target.closest(".label-filter");
+  if (!item) return;
+  currentLabelFilter = item.dataset.label;
+  currentFilter = "all";
+  document.querySelectorAll(".sidebar-item[data-filter]").forEach((el) => el.classList.toggle("active", el.dataset.filter === "all"));
+  renderLabelFilters();
   renderTable();
 });
 
@@ -440,8 +513,8 @@ ctxMenu.addEventListener("click", (e) => {
   if (action === "details") openDetails(Array.from(selected)[0]);
   else if (action === "resume") act("torrent-start");
   else if (action === "pause") act("torrent-stop");
-  else if (action === "remove") confirmRemove(false);
-  else if (action === "remove-data") confirmRemove(true);
+  else if (action === "remove") openRemoveConfirm(false);
+  else if (action === "remove-data") openRemoveConfirm(true);
 });
 
 /* ==========================================================================
@@ -456,9 +529,15 @@ let pendingFiles = [];
 
 document.getElementById("btn-add").addEventListener("click", () => {
   magnetInput.value = "";
+  fileInput.value = "";
   pendingFiles = [];
   fileList.innerHTML = "";
   document.getElementById("start-paused").checked = false;
+  document.getElementById("add-labels").value = "";
+  document.getElementById("add-download-dir").value = "";
+  document.getElementById("add-ratio-enabled").checked = false;
+  document.getElementById("add-ratio").value = "2";
+  document.getElementById("add-ratio").disabled = true;
   switchTab("link");
   modal.classList.add("show");
   setTimeout(() => magnetInput.focus(), 50);
@@ -488,7 +567,11 @@ fileInput.addEventListener("change", () => addFiles(fileInput.files));
 
 function addFiles(fileListObj) {
   for (const f of fileListObj) {
-    if (!f.name.endsWith(".torrent")) continue;
+    if (!f.name.toLowerCase().endsWith(".torrent")) continue;
+    if (f.size > 16 * 1024 * 1024) {
+      toast(t("toast_file_too_large"), "error");
+      continue;
+    }
     pendingFiles.push(f);
   }
   renderFileList();
@@ -511,8 +594,24 @@ function fileToBase64(file) {
   });
 }
 
+function labelsFromInput(value) {
+  return [...new Set(value.split(",").map((x) => x.trim()).filter(Boolean))];
+}
+
+document.getElementById("add-ratio-enabled").addEventListener("change", () => {
+  document.getElementById("add-ratio").disabled = !document.getElementById("add-ratio-enabled").checked;
+});
+
 document.getElementById("modal-submit").addEventListener("click", async () => {
   const paused = document.getElementById("start-paused").checked;
+  const labelsInput = document.getElementById("add-labels").value.trim();
+  const labels = labelsFromInput(labelsInput);
+  const downloadDir = document.getElementById("add-download-dir").value.trim();
+  const ratioEnabled = document.getElementById("add-ratio-enabled").checked;
+  const ratio = finiteNonNegative(document.getElementById("add-ratio").value);
+  if (/[\r\n]/.test(labelsInput)) { toast(t("toast_invalid_category"), "error"); return; }
+  if (downloadDir && !isSharePath(downloadDir)) { toast(t("toast_invalid_path"), "error"); return; }
+  if (ratioEnabled && ratio == null) { toast(t("toast_invalid_settings"), "error"); return; }
   const submitBtn = document.getElementById("modal-submit");
   submitBtn.disabled = true;
   let added = 0, failed = 0;
@@ -522,14 +621,15 @@ document.getElementById("modal-submit").addEventListener("click", async () => {
     if (activePane === "link") {
       const lines = magnetInput.value.split("\n").map((s) => s.trim()).filter(Boolean);
       for (const link of lines) {
-        try { await rpc("torrent-add", { filename: link, paused }); added++; }
+        if (!isAllowedTorrentSource(link)) { failed++; continue; }
+        try { await addTorrent({ filename: link }, { paused, labels, downloadDir, ratioEnabled, ratio }); added++; }
         catch (e) { failed++; }
       }
     } else {
       for (const f of pendingFiles) {
         try {
           const b64 = await fileToBase64(f);
-          await rpc("torrent-add", { metainfo: b64, paused });
+          await addTorrent({ metainfo: b64 }, { paused, labels, downloadDir, ratioEnabled, ratio });
           added++;
         } catch (e) { failed++; }
       }
@@ -542,6 +642,18 @@ document.getElementById("modal-submit").addEventListener("click", async () => {
   if (failed) toast(t("toast_add_failed") + failed, "error");
   if (added) { closeModal(); poll(); }
 });
+
+async function addTorrent(source, options) {
+  const args = { ...source, paused: options.paused };
+  if (options.labels.length) args.labels = options.labels;
+  if (options.downloadDir) args["download-dir"] = options.downloadDir;
+  const result = await rpc("torrent-add", args);
+  const id = result["torrent-added"] && result["torrent-added"].id;
+  if (id && options.ratioEnabled) {
+    await rpc("torrent-set", { ids: [id], seedRatioMode: 1, seedRatioLimit: options.ratio });
+  }
+  return result;
+}
 
 /* ==========================================================================
    DETAILS MODAL — general info + per-file priority
@@ -556,7 +668,7 @@ const DETAIL_FIELDS = [
   "addedDate", "doneDate", "comment", "creator", "dateCreated", "isPrivate",
   "pieceCount", "pieceSize", "error", "errorString", "percentDone",
   "downloadedEver", "uploadedEver", "uploadRatio", "trackerStats",
-  "files", "fileStats",
+  "files", "fileStats", "labels", "seedRatioLimit", "seedRatioMode",
 ];
 
 let currentDetailsId = null;
@@ -612,6 +724,7 @@ function renderDetailsGeneral(tor) {
     [t("d_uploaded"), fmtBytes(tor.uploadedEver)],
     [t("d_ratio"), fmtRatio(tor.uploadRatio)],
     [t("d_location"), tor.downloadDir],
+    [t("add_category"), (tor.labels || []).join(", ") || t("sb_uncategorized")],
     [t("d_hash"), tor.hashString],
     [t("d_added"), fmtDate(tor.addedDate)],
     [t("d_completed"), tor.doneDate ? fmtDate(tor.doneDate) : "—"],
@@ -769,11 +882,33 @@ const modalSettings = document.getElementById("modal-settings");
 
 const SETTINGS_FIELDS = [
   "download-dir",
+  "incomplete-dir", "incomplete-dir-enabled",
+  "watch-dir", "watch-dir-enabled",
   "speed-limit-down", "speed-limit-down-enabled",
   "speed-limit-up", "speed-limit-up-enabled",
   "seedRatioLimit", "seedRatioLimited",
+  "download-queue-enabled", "download-queue-size",
+  "seed-queue-enabled", "seed-queue-size",
   "peer-port", "port-forwarding-enabled", "encryption",
 ];
+
+function isSharePath(value) {
+  return /^\/share(?:\/|$)/.test(value) && !/[\u0000\r\n]/.test(value);
+}
+
+function isAllowedTorrentSource(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "magnet:" || url.protocol === "http:" || url.protocol === "https:";
+  } catch (e) {
+    return false;
+  }
+}
+
+function finiteNonNegative(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
 
 function setNumInputEnabled(checkboxId, inputId) {
   document.getElementById(inputId).disabled = !document.getElementById(checkboxId).checked;
@@ -783,18 +918,30 @@ async function openSettings() {
   try {
     const s = await rpc("session-get", { fields: SETTINGS_FIELDS });
     document.getElementById("set-download-dir").value = s["download-dir"] || "";
+    document.getElementById("set-incomplete-enabled").checked = !!s["incomplete-dir-enabled"];
+    document.getElementById("set-incomplete-dir").value = s["incomplete-dir"] || "";
+    document.getElementById("set-watch-enabled").checked = !!s["watch-dir-enabled"];
+    document.getElementById("set-watch-dir").value = s["watch-dir"] || "";
     document.getElementById("set-dl-limit-enabled").checked = !!s["speed-limit-down-enabled"];
     document.getElementById("set-dl-limit").value = s["speed-limit-down"] ?? 0;
     document.getElementById("set-ul-limit-enabled").checked = !!s["speed-limit-up-enabled"];
     document.getElementById("set-ul-limit").value = s["speed-limit-up"] ?? 0;
     document.getElementById("set-ratio-enabled").checked = !!s["seedRatioLimited"];
     document.getElementById("set-ratio").value = s["seedRatioLimit"] ?? 2;
+    document.getElementById("set-download-queue-enabled").checked = !!s["download-queue-enabled"];
+    document.getElementById("set-download-queue-size").value = s["download-queue-size"] ?? 3;
+    document.getElementById("set-seed-queue-enabled").checked = !!s["seed-queue-enabled"];
+    document.getElementById("set-seed-queue-size").value = s["seed-queue-size"] ?? 5;
     document.getElementById("set-peer-port").value = s["peer-port"] ?? 51413;
     document.getElementById("set-portmap").checked = !!s["port-forwarding-enabled"];
     document.getElementById("set-encryption").value = s["encryption"] || "preferred";
+    setNumInputEnabled("set-incomplete-enabled", "set-incomplete-dir");
+    setNumInputEnabled("set-watch-enabled", "set-watch-dir");
     setNumInputEnabled("set-dl-limit-enabled", "set-dl-limit");
     setNumInputEnabled("set-ul-limit-enabled", "set-ul-limit");
     setNumInputEnabled("set-ratio-enabled", "set-ratio");
+    setNumInputEnabled("set-download-queue-enabled", "set-download-queue-size");
+    setNumInputEnabled("set-seed-queue-enabled", "set-seed-queue-size");
     modalSettings.classList.add("show");
   } catch (e) {
     toast(t("toast_error") + e.message, "error");
@@ -808,30 +955,189 @@ document.getElementById("settings-close").addEventListener("click", closeSetting
 document.getElementById("settings-cancel").addEventListener("click", closeSettings);
 modalSettings.addEventListener("click", (e) => { if (e.target === modalSettings) closeSettings(); });
 
+document.getElementById("set-incomplete-enabled").addEventListener("change", () => setNumInputEnabled("set-incomplete-enabled", "set-incomplete-dir"));
+document.getElementById("set-watch-enabled").addEventListener("change", () => setNumInputEnabled("set-watch-enabled", "set-watch-dir"));
 document.getElementById("set-dl-limit-enabled").addEventListener("change", () => setNumInputEnabled("set-dl-limit-enabled", "set-dl-limit"));
 document.getElementById("set-ul-limit-enabled").addEventListener("change", () => setNumInputEnabled("set-ul-limit-enabled", "set-ul-limit"));
 document.getElementById("set-ratio-enabled").addEventListener("change", () => setNumInputEnabled("set-ratio-enabled", "set-ratio"));
+document.getElementById("set-download-queue-enabled").addEventListener("change", () => setNumInputEnabled("set-download-queue-enabled", "set-download-queue-size"));
+document.getElementById("set-seed-queue-enabled").addEventListener("change", () => setNumInputEnabled("set-seed-queue-enabled", "set-seed-queue-size"));
 
 document.getElementById("settings-save").addEventListener("click", async () => {
+  const downloadDir = document.getElementById("set-download-dir").value.trim();
+  const incompleteDir = document.getElementById("set-incomplete-dir").value.trim();
+  const watchDir = document.getElementById("set-watch-dir").value.trim();
+  const incompleteEnabled = document.getElementById("set-incomplete-enabled").checked;
+  const watchEnabled = document.getElementById("set-watch-enabled").checked;
+  const dlLimit = finiteNonNegative(document.getElementById("set-dl-limit").value);
+  const ulLimit = finiteNonNegative(document.getElementById("set-ul-limit").value);
+  const ratioLimit = finiteNonNegative(document.getElementById("set-ratio").value);
+  const downloadQueueSize = Number(document.getElementById("set-download-queue-size").value);
+  const seedQueueSize = Number(document.getElementById("set-seed-queue-size").value);
+  const peerPort = Number(document.getElementById("set-peer-port").value);
+
+  if (!isSharePath(downloadDir)
+      || (incompleteEnabled && !isSharePath(incompleteDir))
+      || (watchEnabled && !isSharePath(watchDir))) {
+    toast(t("toast_invalid_path"), "error");
+    return;
+  }
+  if (dlLimit == null || ulLimit == null || ratioLimit == null
+      || !Number.isInteger(peerPort) || peerPort < 1 || peerPort > 65535) {
+    toast(t("toast_invalid_settings"), "error");
+    return;
+  }
+  if (!Number.isInteger(downloadQueueSize) || downloadQueueSize < 1 || downloadQueueSize > 100
+      || !Number.isInteger(seedQueueSize) || seedQueueSize < 1 || seedQueueSize > 1000) {
+    toast(t("toast_invalid_settings"), "error");
+    return;
+  }
+
   const args = {
-    "download-dir": document.getElementById("set-download-dir").value.trim(),
+    "download-dir": downloadDir,
+    "incomplete-dir-enabled": incompleteEnabled,
+    "incomplete-dir": incompleteDir,
+    "watch-dir-enabled": watchEnabled,
+    "watch-dir": watchDir,
     "speed-limit-down-enabled": document.getElementById("set-dl-limit-enabled").checked,
-    "speed-limit-down": Number(document.getElementById("set-dl-limit").value) || 0,
+    "speed-limit-down": dlLimit,
     "speed-limit-up-enabled": document.getElementById("set-ul-limit-enabled").checked,
-    "speed-limit-up": Number(document.getElementById("set-ul-limit").value) || 0,
+    "speed-limit-up": ulLimit,
     seedRatioLimited: document.getElementById("set-ratio-enabled").checked,
-    seedRatioLimit: Number(document.getElementById("set-ratio").value) || 0,
-    "peer-port": Number(document.getElementById("set-peer-port").value) || 51413,
+    seedRatioLimit: ratioLimit,
+    "download-queue-enabled": document.getElementById("set-download-queue-enabled").checked,
+    "download-queue-size": downloadQueueSize,
+    "seed-queue-enabled": document.getElementById("set-seed-queue-enabled").checked,
+    "seed-queue-size": seedQueueSize,
+    "peer-port": peerPort,
     "port-forwarding-enabled": document.getElementById("set-portmap").checked,
     encryption: document.getElementById("set-encryption").value,
   };
   try {
     await rpc("session-set", args);
+    downloadDirCache = downloadDir;
+    refreshFreeSpace();
     toast(t("toast_done"), "success");
     closeSettings();
   } catch (e) {
     toast(t("toast_error") + e.message, "error");
   }
+});
+
+/* ==========================================================================
+   FOLDER PICKER — breadcrumb browser for the download/incomplete/watch dir
+   fields in Settings. Backed by a flat snapshot of real directories under
+   /share (TorrentStation.sh regenerates it every start — see
+   ensure_folders_snapshot), not a live listing: cheap, no extra backend,
+   but a folder created on the NAS only shows up after the next restart.
+   ========================================================================== */
+const modalFolderPicker = document.getElementById("modal-folder-picker");
+const FOLDER_ROOT = "/share";
+let folderTree = [];
+let folderPickerPath = FOLDER_ROOT;
+let folderPickerTarget = null;
+
+async function loadFolderTree() {
+  try {
+    const res = await fetch("folders.json?_=" + Date.now());
+    if (!res.ok) return [];
+    const tree = await res.json();
+    return Array.isArray(tree)
+      ? [...new Set(tree.filter((path) => typeof path === "string" && isSharePath(path)))].sort()
+      : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function folderChildren(path) {
+  const prefix = path.endsWith("/") ? path : path + "/";
+  return folderTree
+    .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes("/"))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function renderFolderBreadcrumb(path) {
+  const rel = path === FOLDER_ROOT ? "" : path.slice(FOLDER_ROOT.length);
+  const parts = rel.split("/").filter(Boolean);
+  let acc = FOLDER_ROOT;
+  const crumbs = [{ label: "share", path: FOLDER_ROOT }];
+  parts.forEach((part) => {
+    acc += "/" + part;
+    crumbs.push({ label: part, path: acc });
+  });
+  document.getElementById("folder-breadcrumb").innerHTML = crumbs
+    .map((c, i) => {
+      const sep = i < crumbs.length - 1 ? '<span class="crumb-sep">/</span>' : "";
+      return `<span class="crumb" data-path="${escapeHtml(c.path)}">${escapeHtml(c.label)}</span>${sep}`;
+    })
+    .join("");
+}
+
+function renderFolderList(path) {
+  const children = folderChildren(path);
+  const listEl = document.getElementById("folder-list");
+  if (!children.length) {
+    listEl.innerHTML = `<div class="empty-state"><div class="t2">${escapeHtml(t("folder_picker_empty"))}</div></div>`;
+    return;
+  }
+  listEl.innerHTML = children
+    .map((p) => {
+      const name = p.slice(p.lastIndexOf("/") + 1);
+      return `<div class="folder-row" data-path="${escapeHtml(p)}">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <span>${escapeHtml(name)}</span>
+      </div>`;
+    })
+    .join("");
+}
+
+function goToFolder(path) {
+  if (!isSharePath(path) || !folderTree.includes(path)) return;
+  folderPickerPath = path;
+  renderFolderBreadcrumb(path);
+  renderFolderList(path);
+}
+
+async function openFolderPicker(inputId) {
+  folderPickerTarget = inputId;
+  const startVal = document.getElementById(inputId).value.trim();
+  folderTree = await loadFolderTree();
+  let start = FOLDER_ROOT;
+  if (startVal) {
+    if (folderTree.includes(startVal)) {
+      start = startVal;
+    } else {
+      // walk up from the typed path to the nearest known ancestor
+      let p = startVal.replace(/\/$/, "");
+      while (p.includes("/")) {
+        p = p.slice(0, p.lastIndexOf("/"));
+        if (folderTree.includes(p)) { start = p; break; }
+      }
+    }
+  }
+  goToFolder(start);
+  modalFolderPicker.classList.add("show");
+}
+function closeFolderPicker() { modalFolderPicker.classList.remove("show"); }
+
+document.querySelectorAll(".browse-btn").forEach((btn) => {
+  btn.addEventListener("click", () => openFolderPicker(btn.dataset.target));
+});
+document.getElementById("folder-picker-close").addEventListener("click", closeFolderPicker);
+document.getElementById("folder-picker-cancel").addEventListener("click", closeFolderPicker);
+modalFolderPicker.addEventListener("click", (e) => { if (e.target === modalFolderPicker) closeFolderPicker(); });
+document.getElementById("folder-breadcrumb").addEventListener("click", (e) => {
+  const crumb = e.target.closest(".crumb");
+  if (crumb) goToFolder(crumb.dataset.path);
+});
+document.getElementById("folder-list").addEventListener("click", (e) => {
+  const row = e.target.closest(".folder-row");
+  if (row) goToFolder(row.dataset.path);
+});
+document.getElementById("folder-picker-select").addEventListener("click", () => {
+  if (folderPickerTarget) document.getElementById(folderPickerTarget).value = folderPickerPath;
+  closeFolderPicker();
 });
 
 /* ==========================================================================
@@ -842,8 +1148,8 @@ startPolling();
 
 /* keyboard: Escape closes modal/menu, Delete removes selection */
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeModal(); closeDetails(); closeSettings(); closeHistory(); ctxMenu.classList.remove("show"); }
+  if (e.key === "Escape") { closeModal(); closeDetails(); closeSettings(); closeHistory(); closeRemoveConfirm(); closeFolderPicker(); ctxMenu.classList.remove("show"); }
   if (e.key === "Delete" && selected.size && app.classList.contains("active") && !modal.classList.contains("show") && !modalDetails.classList.contains("show")) {
-    confirmRemove(false);
+    openRemoveConfirm(false);
   }
 });

@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Torrent Station</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png?v=1">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=1">
 <script>
 // Apply saved/system theme before first paint, so there's no flash of the wrong theme.
 (function () {
@@ -14,7 +16,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="styles.css?v=15">
+<link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
 <div class="grain"></div>
@@ -25,21 +27,22 @@
     <div class="brand">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
       <span class="wordmark">Torrent<span>Station</span></span>
+      <span class="version-badge" id="app-version" aria-label="Application version">v—</span>
     </div>
     <div class="toolbar">
-      <button class="tbtn primary" id="btn-add">
+      <button type="button" class="tbtn primary" id="btn-add">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <span data-i18n="tb_add">Добавить</span>
       </button>
-      <button class="tbtn" id="btn-resume" disabled>
+      <button type="button" class="tbtn" id="btn-resume" disabled>
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg>
         <span data-i18n="tb_start">Старт</span>
       </button>
-      <button class="tbtn" id="btn-pause" disabled>
+      <button type="button" class="tbtn" id="btn-pause" disabled>
         <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>
         <span data-i18n="tb_pause">Пауза</span>
       </button>
-      <button class="tbtn danger" id="btn-remove" disabled>
+      <button type="button" class="tbtn danger" id="btn-remove" disabled>
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span data-i18n="tb_remove">Удалить</span>
       </button>
@@ -50,14 +53,14 @@
       <input type="text" id="search" data-i18n-placeholder="search_ph" placeholder="Поиск по имени…">
     </div>
     <select class="lang-select" id="lang-select"></select>
-    <button class="tbtn icon-only" id="theme-toggle" data-i18n-title="theme_toggle" title="Тема">
+    <button type="button" class="tbtn icon-only" id="theme-toggle" data-i18n-title="theme_toggle" title="Тема">
       <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8.5 8.5 0 0110 4a8.5 8.5 0 108.5 8.5c0 .68-.07 1.34-.2 2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
       <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" style="display:none"><circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
     </button>
-    <button class="tbtn icon-only" id="btn-history" data-i18n-title="history_title" title="История">
+    <button type="button" class="tbtn icon-only" id="btn-history" data-i18n-title="history_title" title="История">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>
-    <button class="tbtn icon-only" id="btn-settings" data-i18n-title="settings_title" title="Настройки">
+    <button type="button" class="tbtn icon-only" id="btn-settings" data-i18n-title="settings_title" title="Настройки">
       <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13a7.97 7.97 0 000-2l2.1-1.6-2-3.5-2.5 1a8 8 0 00-1.7-1L14.9 3h-4l-.4 2.9a8 8 0 00-1.7 1l-2.5-1-2 3.5L6.4 11a7.97 7.97 0 000 2l-2.1 1.6 2 3.5 2.5-1a8 8 0 001.7 1l.4 2.9h4l.4-2.9a8 8 0 001.7-1l2.5 1 2-3.5L19.4 13z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
     </button>
   </div>
@@ -76,10 +79,13 @@
       <div class="sidebar-divider"></div>
       <div class="sidebar-label" data-i18n="sb_storage">Хранилище</div>
       <div class="sidebar-item" style="cursor:default" id="free-space"><span class="name"><span data-i18n="sb_free">Свободно</span></span><span class="count">—</span></div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-label" data-i18n="sb_categories">Категории</div>
+      <div id="label-filters" class="label-filters"></div>
     </div>
 
-    <div class="table-wrap" id="table-wrap">
-      <table class="torrents">
+    <main class="table-wrap" id="table-wrap" tabindex="-1">
+      <table class="torrents" aria-label="Torrent list">
         <thead>
           <tr>
             <th data-sort="name" style="width:36%"><span data-i18n="col_name">Имя</span> <span class="arrow"></span></th>
@@ -101,7 +107,7 @@
         <div class="t1" data-i18n="empty_t1">Пусто</div>
         <div class="t2" data-i18n="empty_t2">Добавьте торрент по ссылке-magnet или .torrent-файлом</div>
       </div>
-    </div>
+    </main>
   </div>
 
   <div class="statusbar">
@@ -123,11 +129,11 @@
 </div>
 
 <!-- ============ ADD TORRENT MODAL ============ -->
-<div class="modal-overlay" id="modal-add">
+<div class="modal-overlay" id="modal-add" role="dialog" aria-modal="true" aria-labelledby="add-dialog-title">
   <div class="modal">
     <div class="modal-head">
-      <h2 data-i18n="modal_title">Добавить торрент</h2>
-      <div class="modal-close" id="modal-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <h2 id="add-dialog-title" data-i18n="modal_title">Добавить торрент</h2>
+      <button type="button" class="modal-close" id="modal-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
     <div class="modal-tabs">
       <div class="modal-tab active" data-tab="link" data-i18n="tab_link">Ссылка / Magnet</div>
@@ -146,6 +152,24 @@
         <div class="file-list" id="file-list"></div>
       </div>
       <label class="checkbox-row"><input type="checkbox" id="start-paused"> <span data-i18n="start_paused">Добавить на паузе</span></label>
+      <div class="add-options">
+        <div class="field">
+          <label for="add-labels" data-i18n="add_category">Категория / метки</label>
+          <input id="add-labels" type="text" maxlength="120" data-i18n-placeholder="add_category_ph" placeholder="Например: Фильмы, 4K">
+          <div class="field-hint" data-i18n="add_category_hint">Метки сохраняются в Transmission и видны с любого устройства.</div>
+        </div>
+        <div class="field">
+          <label for="add-download-dir" data-i18n="add_download_dir">Папка для этого торрента</label>
+          <div class="path-row">
+            <input id="add-download-dir" type="text" data-i18n-placeholder="add_default_folder" placeholder="По умолчанию">
+            <button type="button" class="mbtn tiny browse-btn" data-target="add-download-dir" data-i18n="browse_btn">Обзор…</button>
+          </div>
+        </div>
+        <div class="settings-row compact">
+          <label class="checkbox-row inline"><input type="checkbox" id="add-ratio-enabled"> <span data-i18n="add_ratio">Остановить раздачу по рейтингу</span></label>
+          <input type="number" id="add-ratio" min="0" step="0.1" value="2" class="num-input" disabled>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="mbtn" id="modal-cancel" data-i18n="modal_cancel">Отмена</button>
@@ -155,10 +179,10 @@
 </div>
 
 <!-- ============ DETAILS PANEL (bottom-docked) ============ -->
-<div class="details-panel" id="modal-details">
+<section class="details-panel" id="modal-details" role="dialog" aria-modal="true" aria-labelledby="details-title">
   <div class="modal-head">
     <h2 id="details-title" data-i18n="details_title">Детали торрента</h2>
-    <div class="modal-close" id="details-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+    <button type="button" class="modal-close" id="details-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
   </div>
   <div class="modal-tabs">
     <div class="modal-tab" data-dtab="general" data-i18n="details_tab_general">Обзор</div>
@@ -170,20 +194,37 @@
       <div class="file-rows" id="file-rows"></div>
     </div>
   </div>
-</div>
+</section>
 
 <!-- ============ SETTINGS MODAL ============ -->
-<div class="modal-overlay" id="modal-settings">
+<div class="modal-overlay" id="modal-settings" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title">
   <div class="modal">
     <div class="modal-head">
-      <h2 data-i18n="settings_title">Настройки</h2>
-      <div class="modal-close" id="settings-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <h2 id="settings-dialog-title" data-i18n="settings_title">Настройки</h2>
+      <button type="button" class="modal-close" id="settings-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
     <div class="modal-body">
       <div class="settings-section-title" data-i18n="set_downloads">Загрузка</div>
       <div class="field">
         <label for="set-download-dir" data-i18n="set_download_dir">Папка загрузки</label>
-        <input id="set-download-dir" type="text">
+        <div class="path-row">
+          <input id="set-download-dir" type="text" data-i18n-placeholder="path_ph" placeholder="/share/…">
+          <button type="button" class="mbtn tiny browse-btn" data-target="set-download-dir" data-i18n="browse_btn">Обзор…</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="checkbox-row inline"><input type="checkbox" id="set-incomplete-enabled"> <span data-i18n="set_incomplete_enabled">Отдельная папка для незавершённых файлов</span></label>
+        <div class="path-row">
+          <input id="set-incomplete-dir" type="text" data-i18n-placeholder="path_ph" placeholder="/share/…">
+          <button type="button" class="mbtn tiny browse-btn" data-target="set-incomplete-dir" data-i18n="browse_btn">Обзор…</button>
+        </div>
+      </div>
+      <div class="field">
+        <label class="checkbox-row inline"><input type="checkbox" id="set-watch-enabled"> <span data-i18n="set_watch_enabled">Следить за папкой на новые .torrent-файлы</span></label>
+        <div class="path-row">
+          <input id="set-watch-dir" type="text" data-i18n-placeholder="path_ph" placeholder="/share/…">
+          <button type="button" class="mbtn tiny browse-btn" data-target="set-watch-dir" data-i18n="browse_btn">Обзор…</button>
+        </div>
       </div>
 
       <div class="settings-section-title" data-i18n="set_speed">Скорость</div>
@@ -202,6 +243,16 @@
       <div class="settings-row">
         <label class="checkbox-row inline"><input type="checkbox" id="set-ratio-enabled"> <span data-i18n="set_ratio_limit">Остановить раздачу по рейтингу</span></label>
         <input type="number" id="set-ratio" min="0" step="0.1" class="num-input">
+      </div>
+
+      <div class="settings-section-title" data-i18n="set_queue">Очередь</div>
+      <div class="settings-row">
+        <label class="checkbox-row inline"><input type="checkbox" id="set-download-queue-enabled"> <span data-i18n="set_download_queue">Одновременные загрузки</span></label>
+        <input type="number" id="set-download-queue-size" min="1" max="100" class="num-input">
+      </div>
+      <div class="settings-row">
+        <label class="checkbox-row inline"><input type="checkbox" id="set-seed-queue-enabled"> <span data-i18n="set_seed_queue">Одновременные раздачи</span></label>
+        <input type="number" id="set-seed-queue-size" min="1" max="1000" class="num-input">
       </div>
 
       <div class="settings-section-title" data-i18n="set_network">Сеть</div>
@@ -227,14 +278,51 @@
 </div>
 
 <!-- ============ HISTORY MODAL ============ -->
-<div class="modal-overlay" id="modal-history">
+<div class="modal-overlay" id="modal-history" role="dialog" aria-modal="true" aria-labelledby="history-dialog-title">
   <div class="modal">
     <div class="modal-head">
-      <h2 data-i18n="history_title">История</h2>
-      <div class="modal-close" id="history-close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <h2 id="history-dialog-title" data-i18n="history_title">История</h2>
+      <button type="button" class="modal-close" id="history-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
     <div class="modal-body" style="max-height:60vh; overflow-y:auto;">
       <div id="history-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ REMOVE CONFIRM MODAL ============ -->
+<div class="modal-overlay" id="modal-remove" role="dialog" aria-modal="true" aria-labelledby="remove-dialog-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="remove-dialog-title" data-i18n="remove_title">Удалить торрент?</h2>
+      <button type="button" class="modal-close" id="remove-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="remove-msg" id="remove-msg"></div>
+      <label class="checkbox-row"><input type="checkbox" id="remove-delete-data"> <span data-i18n="remove_checkbox">Также удалить файлы с диска</span></label>
+      <div class="remove-warning" id="remove-warning" data-i18n="remove_warning">Внимание: файлы будут удалены безвозвратно.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn" id="remove-cancel" data-i18n="modal_cancel">Отмена</button>
+      <button class="mbtn danger" id="remove-submit" data-i18n="tb_remove">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FOLDER PICKER MODAL ============ -->
+<div class="modal-overlay" id="modal-folder-picker" role="dialog" aria-modal="true" aria-labelledby="folder-dialog-title">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="folder-dialog-title" data-i18n="folder_picker_title">Выбор папки</h2>
+      <button type="button" class="modal-close" id="folder-picker-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="folder-breadcrumb" id="folder-breadcrumb"></div>
+      <div class="folder-list" id="folder-list"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn" id="folder-picker-cancel" data-i18n="modal_cancel">Отмена</button>
+      <button class="mbtn primary" id="folder-picker-select" data-i18n="folder_picker_select">Выбрать эту папку</button>
     </div>
   </div>
 </div>
@@ -250,10 +338,11 @@
   <div class="ctx-item danger" data-action="remove-data"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="ctx_remove_data">Удалить с диска</span></div>
 </div>
 
-<div class="toast-wrap" id="toast-wrap"></div>
+<div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
-<script src="theme.js?v=15"></script>
-<script src="i18n.js?v=15"></script>
-<script src="app.js?v=15"></script>
+<script src="theme.js?v=23"></script>
+<script src="i18n.js?v=23"></script>
+<script src="version.js?v=1"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

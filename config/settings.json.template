@@ -21,11 +21,15 @@
     "lpd-enabled": true,
     "pex-enabled": true,
     "utp-enabled": true,
-    "encryption": 1,
+    "encryption": "preferred",
 
     "speed-limit-down-enabled": false,
     "speed-limit-up-enabled": false,
     "ratio-limit-enabled": false,
+    "download-queue-enabled": true,
+    "download-queue-size": 3,
+    "seed-queue-enabled": true,
+    "seed-queue-size": 5,
 
     "blocklist-enabled": false,
     "message-level": 2,

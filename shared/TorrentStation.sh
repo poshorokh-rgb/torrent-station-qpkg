@@ -4,12 +4,24 @@
 #   TorrentStation.sh {start|stop|restart|status}
 
 QPKG_NAME="TorrentStation"
-QPKG_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# App Center invokes this file through /etc/init.d/TorrentStation.sh, which is
+# a symlink into the QPKG directory. Resolve links before deriving the root;
+# otherwise a boot/start action would incorrectly treat /etc as the package.
+SCRIPT_PATH="$0"
+while [ -L "$SCRIPT_PATH" ]; do
+    LINK_TARGET="$(readlink "$SCRIPT_PATH")"
+    case "$LINK_TARGET" in
+        /*) SCRIPT_PATH="$LINK_TARGET" ;;
+        *) SCRIPT_PATH="$(dirname "$SCRIPT_PATH")/$LINK_TARGET" ;;
+    esac
+done
+QPKG_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 
 OPT=/opt
-OPKG="$OPT/bin/opkg"
-TR_DAEMON="$OPT/bin/transmission-daemon"
-TR_REMOTE="$OPT/bin/transmission-remote"
+RUNTIME_DIR="$QPKG_ROOT/runtime/x86_64"
+RUNTIME_LIB_DIR="$RUNTIME_DIR/lib"
+TR_LOADER="$RUNTIME_LIB_DIR/ld-linux-x86-64.so.2"
+TR_DAEMON="$RUNTIME_DIR/bin/transmission-daemon"
 
 WEBUI_DIR="$QPKG_ROOT/webui"                # our custom qBittorrent-styled UI (source)
 WEB_TARGET_DIR="$OPT/share/transmission/public_html"  # where transmission-daemon actually serves the UI from
@@ -39,17 +51,16 @@ HOOKS_DIR="$QPKG_ROOT/shared/hooks"
 log() { echo "[TorrentStation] $*"; }
 die() { echo "[TorrentStation] ERROR: $*" >&2; exit 1; }
 
-check_entware() {
-    [ -x "$OPKG" ] || die "Entware not found at $OPKG. Install Entware first (App Center -> search 'Entware', or see https://github.com/Entware/Entware/wiki/Install-on-QNAP-NAS), then reinstall/start TorrentStation."
+check_runtime() {
+    [ -x "$TR_DAEMON" ] || die "bundled transmission-daemon is missing: $TR_DAEMON"
+    [ -x "$TR_LOADER" ] || die "bundled runtime loader is missing: $TR_LOADER"
 }
 
-ensure_transmission_installed() {
-    if [ ! -x "$TR_DAEMON" ]; then
-        log "transmission-daemon not found under $OPT, installing via opkg..."
-        "$OPKG" update || die "opkg update failed (check NAS internet access)"
-        "$OPKG" install transmission-daemon transmission-web || die "opkg install transmission-daemon transmission-web failed"
-    fi
-    [ -x "$TR_DAEMON" ] || die "transmission-daemon still missing after opkg install"
+run_transmission() {
+    # The bundled Transmission was linked against its own glibc. Invoking its
+    # loader explicitly makes the QPKG independent from Entware and QTS's
+    # system libraries, which may have incompatible versions.
+    "$TR_LOADER" --library-path "$RUNTIME_LIB_DIR" "$TR_DAEMON" "$@"
 }
 
 gen_password() {
@@ -59,6 +70,7 @@ gen_password() {
 
 ensure_config() {
     mkdir -p "$DATA_DIR" "$DOWNLOAD_DIR" "$INCOMPLETE_DIR" "$WATCH_DIR"
+    chmod 700 "$DATA_DIR" 2>/dev/null || true
 
     if [ ! -f "$CONF_FILE" ]; then
         log "First run: generating settings.json"
@@ -85,6 +97,30 @@ ensure_config() {
         chmod 600 "$CRED_FILE"
         log "Credentials written to $CRED_FILE (chmod 600)"
     fi
+
+    # Existing installations may have created this file with a permissive
+    # process umask, so repair its permissions on every start.
+    chmod 600 "$CONF_FILE" 2>/dev/null || die "cannot protect $CONF_FILE"
+}
+
+ensure_hook_settings() {
+    # settings.json is only written once, on first-ever start (see
+    # ensure_config above). The script-torrent-*-enabled/-filename keys were
+    # added to the template after some installs already had a settings.json
+    # on disk, so a plain reinstall/upgrade never adds them and the history
+    # hooks silently never fire. Patch them in if missing, idempotently.
+    grep -q '"script-torrent-added-enabled"' "$CONF_FILE" 2>/dev/null && return 0
+    log "settings.json predates download-history hooks, patching them in"
+    HOOK_BLOCK="$DATA_DIR/.hook-block.$$"
+    {
+        echo "    \"script-torrent-added-enabled\": true,"
+        echo "    \"script-torrent-added-filename\": \"${QPKG_ROOT}/shared/hooks/on-torrent-added.sh\","
+        echo "    \"script-torrent-done-enabled\": true,"
+        echo "    \"script-torrent-done-filename\": \"${QPKG_ROOT}/shared/hooks/on-torrent-done.sh\","
+    } > "$HOOK_BLOCK"
+    sed "1r $HOOK_BLOCK" "$CONF_FILE" > "$CONF_FILE.new" && mv "$CONF_FILE.new" "$CONF_FILE"
+    rm -f "$HOOK_BLOCK"
+    chmod 600 "$CONF_FILE" 2>/dev/null || die "cannot protect $CONF_FILE"
 }
 
 ensure_webui() {
@@ -93,6 +129,16 @@ ensure_webui() {
     # restore the stock files) gets clobbered back to our UI on next restart.
     mkdir -p "$WEB_TARGET_DIR"
     cp -a "$WEBUI_DIR"/. "$WEB_TARGET_DIR"/
+    # Keep the header's version independent of a hard-coded web UI release.
+    # qpkg.cfg is shipped in every package and QPKG_VER is constrained by the
+    # package build, so this value is safe to expose as a quoted JS string.
+    QPKG_VERSION="$(sed -n 's/^QPKG_VER="\([0-9.][0-9.]*\)"$/\1/p' "$QPKG_ROOT/qpkg.cfg" | head -n 1)"
+    [ -n "$QPKG_VERSION" ] || QPKG_VERSION="?"
+    printf 'window.TORRENT_STATION_VERSION = "%s";\n' "$QPKG_VERSION" > "$WEB_TARGET_DIR/version.js"
+    # Static assets need only be readable by the web server.  In particular,
+    # a locally writable app.js would run with every authenticated browser's
+    # Transmission session.
+    chmod -R go-w "$WEB_TARGET_DIR" 2>/dev/null || true
 }
 
 ensure_hooks() {
@@ -107,30 +153,76 @@ ensure_hooks() {
 ensure_history() {
     mkdir -p "$HISTORY_DIR"
     [ -f "$HISTORY_FILE" ] || : > "$HISTORY_FILE"
+    chmod 700 "$HISTORY_DIR" 2>/dev/null || true
+    chmod 600 "$HISTORY_FILE" 2>/dev/null || true
     # Re-sync the web-served copy in case public_html got reset (e.g. by
     # an opkg upgrade of transmission-web).
     cp -f "$HISTORY_FILE" "$WEB_TARGET_DIR/history.jsonl" 2>/dev/null
 }
 
+esc_json() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\r\n'; }
+
+ensure_folders_snapshot() {
+    # Feed the folder picker with QNAP's top-level friendly shares only.
+    # Recursively following /share can walk millions of media files or block
+    # on a sleeping/external volume, which prevented the daemon from starting.
+    # Users can still type any nested /share path in Settings.
+    FOLDERS_FILE="$WEB_TARGET_DIR/folders.json"
+    {
+        printf '['
+        first=1
+        for p in /share/*; do
+            [ -e "$p" ] || [ -L "$p" ] || continue
+            case "$p" in
+                *_DATA|*/.*) continue ;;
+            esac
+            [ "$first" = 1 ] && first=0 || printf ','
+            printf '"%s"' "$(esc_json "$p")"
+        done
+        printf ']'
+    } > "$FOLDERS_FILE" 2>/dev/null
+}
+
+read_pid() {
+    [ -r "$PID_FILE" ] || return 1
+    PID="$(cat "$PID_FILE" 2>/dev/null)"
+    case "$PID" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    printf '%s\n' "$PID"
+}
+
 is_running() {
-    [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null
+    PID="$(read_pid)" || return 1
+    [ -r "/proc/$PID/cmdline" ] || return 1
+    kill -0 "$PID" 2>/dev/null || return 1
+    # transmission-daemon is launched through the bundled dynamic loader, so
+    # /proc/<pid>/cmdline starts with ld-linux rather than the daemon binary.
+    # Match the daemon argument within the NUL-delimited vector instead of
+    # relying on a pipeline whose exit status varies between QTS BusyBox builds.
+    CMDLINE="$(tr '\000' ' ' < "/proc/$PID/cmdline" 2>/dev/null)"
+    case "$CMDLINE" in
+        *"$TR_DAEMON"*) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 start() {
-    check_entware
-    ensure_transmission_installed
+    check_runtime
     ensure_config
+    ensure_hook_settings
     ensure_webui
     ensure_hooks
     ensure_history
+    ensure_folders_snapshot
 
     if is_running; then
-        log "already running (pid $(cat "$PID_FILE"))"
+        log "already running (pid $(read_pid))"
         return 0
     fi
 
     log "starting transmission-daemon"
-    "$TR_DAEMON" \
+    run_transmission \
         --config-dir "$DATA_DIR" \
         --pid-file "$PID_FILE" \
         --logfile "$LOG_FILE" \
@@ -140,7 +232,7 @@ start() {
 
     sleep 1
     if is_running; then
-        log "started (pid $(cat "$PID_FILE"))"
+        log "started (pid $(read_pid))"
     else
         die "transmission-daemon failed to start, check $LOG_FILE"
     fi
@@ -148,7 +240,7 @@ start() {
 
 stop() {
     if is_running; then
-        PID="$(cat "$PID_FILE")"
+        PID="$(read_pid)"
         log "stopping (pid $PID)"
         kill "$PID"
         for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -158,6 +250,9 @@ stop() {
         is_running && kill -9 "$PID" 2>/dev/null
         rm -f "$PID_FILE"
     else
+        # A stale or malformed PID file must never be trusted to signal or
+        # kill another process after its PID has been reused by the system.
+        [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
         log "not running"
     fi
 }
@@ -169,7 +264,7 @@ restart() {
 
 status() {
     if is_running; then
-        echo "TorrentStation is running (pid $(cat "$PID_FILE"))"
+        echo "TorrentStation is running (pid $(read_pid))"
         exit 0
     else
         echo "TorrentStation is not running"
