@@ -45,6 +45,12 @@ cp -f "$QPKG_ROOT/icons/qpkg_icon.gif" "$QPKG_ROOT/.qpkg_icon.gif"
 cp -f "$QPKG_ROOT/icons/qpkg_icon_80.gif" "$QPKG_ROOT/.qpkg_icon_80.gif"
 cp -f "$QPKG_ROOT/icons/qpkg_icon_gray.gif" "$QPKG_ROOT/.qpkg_icon_gray.gif"
 if [ -d /home/httpd/RSS/images ]; then
+    # QTS can create these paths as symlinks to the QPKG-root icons. Remove
+    # an existing target first; otherwise GNU cp aborts with "are the same
+    # file" during an upgrade and the whole package installation is cancelled.
+    rm -f "/home/httpd/RSS/images/${QPKG_NAME}.gif"
+    rm -f "/home/httpd/RSS/images/${QPKG_NAME}_80.gif"
+    rm -f "/home/httpd/RSS/images/${QPKG_NAME}_gray.gif"
     cp -f "$QPKG_ROOT/.qpkg_icon.gif" "/home/httpd/RSS/images/${QPKG_NAME}.gif"
     cp -f "$QPKG_ROOT/.qpkg_icon_80.gif" "/home/httpd/RSS/images/${QPKG_NAME}_80.gif"
     cp -f "$QPKG_ROOT/.qpkg_icon_gray.gif" "/home/httpd/RSS/images/${QPKG_NAME}_gray.gif"
