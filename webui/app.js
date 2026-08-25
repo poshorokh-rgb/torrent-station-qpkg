@@ -935,10 +935,6 @@ async function openSettings() {
     document.getElementById("set-peer-port").value = s["peer-port"] ?? 51413;
     document.getElementById("set-portmap").checked = !!s["port-forwarding-enabled"];
     document.getElementById("set-encryption").value = s["encryption"] || "preferred";
-    // Passwords are never read back from Transmission. Always start with
-    // empty fields so opening Settings cannot accidentally submit stale data.
-    document.getElementById("set-rpc-password").value = "";
-    document.getElementById("set-rpc-password-confirm").value = "";
     setNumInputEnabled("set-incomplete-enabled", "set-incomplete-dir");
     setNumInputEnabled("set-watch-enabled", "set-watch-dir");
     setNumInputEnabled("set-dl-limit-enabled", "set-dl-limit");
@@ -979,8 +975,6 @@ document.getElementById("settings-save").addEventListener("click", async () => {
   const downloadQueueSize = Number(document.getElementById("set-download-queue-size").value);
   const seedQueueSize = Number(document.getElementById("set-seed-queue-size").value);
   const peerPort = Number(document.getElementById("set-peer-port").value);
-  const newPassword = document.getElementById("set-rpc-password").value;
-  const newPasswordConfirm = document.getElementById("set-rpc-password-confirm").value;
 
   if (!isSharePath(downloadDir)
       || (incompleteEnabled && !isSharePath(incompleteDir))
@@ -996,14 +990,6 @@ document.getElementById("settings-save").addEventListener("click", async () => {
   if (!Number.isInteger(downloadQueueSize) || downloadQueueSize < 1 || downloadQueueSize > 100
       || !Number.isInteger(seedQueueSize) || seedQueueSize < 1 || seedQueueSize > 1000) {
     toast(t("toast_invalid_settings"), "error");
-    return;
-  }
-  if (newPassword && newPassword.length < 12) {
-    toast(t("toast_password_short"), "error");
-    return;
-  }
-  if (newPassword !== newPasswordConfirm) {
-    toast(t("toast_password_mismatch"), "error");
     return;
   }
 
@@ -1027,22 +1013,12 @@ document.getElementById("settings-save").addEventListener("click", async () => {
     "port-forwarding-enabled": document.getElementById("set-portmap").checked,
     encryption: document.getElementById("set-encryption").value,
   };
-  if (newPassword) args["rpc-password"] = newPassword;
   try {
     await rpc("session-set", args);
     downloadDirCache = downloadDir;
     refreshFreeSpace();
     closeSettings();
-    if (newPassword) {
-      // Transmission hashes the password server-side. The current Basic Auth
-      // credentials immediately become invalid, so intentionally reload and
-      // let the browser request the new password.
-      stopPolling();
-      toast(t("toast_password_changed"), "success");
-      setTimeout(() => window.location.reload(), 1200);
-    } else {
-      toast(t("toast_done"), "success");
-    }
+    toast(t("toast_done"), "success");
   } catch (e) {
     toast(t("toast_error") + e.message, "error");
   }
