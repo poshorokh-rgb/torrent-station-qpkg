@@ -365,12 +365,15 @@ function escapeHtml(s) {
    SELECTION
    ========================================================================== */
 let lastClickedId = null;
+let lastRowClick = { id: null, time: 0 };
 
 els.body.addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-id]");
   if (!tr) return;
   const id = Number(tr.dataset.id);
   const list = sortedFiltered().map((tor) => tor.id);
+  const now = Date.now();
+  const isDoubleClick = lastRowClick.id === id && now - lastRowClick.time < 450;
 
   if (e.shiftKey && lastClickedId != null) {
     const a = list.indexOf(lastClickedId), b = list.indexOf(id);
@@ -382,12 +385,12 @@ els.body.addEventListener("click", (e) => {
     selected = new Set([id]);
   }
   lastClickedId = id;
+  lastRowClick = { id, time: now };
   renderTable();
-});
-
-els.body.addEventListener("dblclick", (e) => {
-  const tr = e.target.closest("tr[data-id]");
-  if (tr) openDetails(Number(tr.dataset.id));
+  if (isDoubleClick) {
+    lastRowClick = { id: null, time: 0 };
+    openDetails(id);
+  }
 });
 
 function updateToolbarState() {
