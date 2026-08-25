@@ -252,7 +252,7 @@ function renderLabelFilters() {
   const counts = new Map();
   let uncategorized = 0;
   for (const tor of torrents) {
-    const labels = Array.isArray(tor.labels) ? tor.labels : [];
+    const labels = (Array.isArray(tor.labels) ? tor.labels : []).filter((label) => !isFocusLabel(label));
     if (!labels.length) uncategorized++;
     for (const label of labels) counts.set(label, (counts.get(label) || 0) + 1);
   }
@@ -274,7 +274,7 @@ function renderLabelFilters() {
    ========================================================================== */
 function matchesFilter(tor) {
   if (currentLabelFilter !== null) {
-    const labels = Array.isArray(tor.labels) ? tor.labels : [];
+    const labels = (Array.isArray(tor.labels) ? tor.labels : []).filter((label) => !isFocusLabel(label));
     if (currentLabelFilter ? !labels.includes(currentLabelFilter) : labels.length) return false;
   }
   switch (currentFilter) {
@@ -337,7 +337,7 @@ function rowHtml(tor) {
   const errBadge = isError ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
   return `
     <tr class="${isSel}" data-id="${tor.id}">
-      <td class="name-cell"${errBadge}><div class="fname">${escapeHtml(tor.name)}</div>${(tor.labels || []).map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")}</td>
+      <td class="name-cell"${errBadge}><div class="fname">${escapeHtml(tor.name)}</div>${(tor.labels || []).filter((label) => !isFocusLabel(label)).map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")}</td>
       <td class="num">${fmtBytes(tor.totalSize)}</td>
       <td>
         <div class="progress-track">
@@ -723,7 +723,9 @@ const DETAIL_FIELDS = [
 let currentDetailsId = null;
 let detailsTimer = null;
 let currentDetailsFileCount = 0;
-const firstPriorityTargets = new Map();
+let currentDetailsLabels = [];
+const FOCUS_LABEL_PREFIX = "__torrentstation_focus_";
+const isFocusLabel = (label) => label.startsWith(FOCUS_LABEL_PREFIX);
 
 // While a priority <select> is open/focused, skip the periodic refresh —
 // replacing the file rows out from under an open native dropdown can
@@ -754,6 +756,7 @@ async function fetchDetails() {
     const tor = data.torrents[0];
     if (!tor) { closeDetails(); return; }
     currentDetailsFileCount = (tor.files || []).length;
+    currentDetailsLabels = tor.labels || [];
     detailsTitle.textContent = tor.name;
     renderDetailsGeneral(tor);
     renderDetailsFiles(tor);
@@ -810,7 +813,7 @@ function renderDetailsFiles(tor) {
   fileRowsEl.innerHTML = files.map((f, i) => {
     const st = stats[i] || { bytesCompleted: 0, wanted: true, priority: 0 };
     const pct = f.length ? Math.round((st.bytesCompleted / f.length) * 100) : 0;
-    const isFirst = firstPriorityTargets.get(currentDetailsId) === i;
+    const isFirst = currentDetailsLabels.includes(FOCUS_LABEL_PREFIX + i);
     const value = isFirst ? "first" : !st.wanted ? "skip" : st.priority === 1 ? "high" : st.priority === -1 ? "low" : "normal";
     return `
       <div class="file-row${!st.wanted ? " skipped" : ""}" data-idx="${i}">
@@ -840,8 +843,8 @@ async function setFilePriority(idx, value) {
         "files-wanted": [idx],
         "priority-high": [idx],
         "files-unwanted": otherFiles,
+        labels: [...currentDetailsLabels.filter((label) => !isFocusLabel(label)), FOCUS_LABEL_PREFIX + idx],
       });
-      firstPriorityTargets.set(currentDetailsId, idx);
       toast(t("priority_first_active"), "success");
       fetchDetails();
     } catch (e) {
@@ -849,7 +852,6 @@ async function setFilePriority(idx, value) {
     }
     return;
   }
-  if (firstPriorityTargets.get(currentDetailsId) === idx) firstPriorityTargets.delete(currentDetailsId);
   const args = { ids: [currentDetailsId] };
   if (value === "skip") {
     args["files-unwanted"] = [idx];

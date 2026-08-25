@@ -99,7 +99,7 @@ const I18N = {
     priority_normal: "Обычный",
     priority_high: "Высокий",
     priority_first: "First — скачать первым",
-    priority_first_active: "First включён: остальные файлы переведены в Skip",
+    priority_first_active: "Фокус включён: остальные файлы возобновятся автоматически после завершения этого",
 
     theme_toggle: "Тема",
     settings_title: "Настройки",
@@ -265,7 +265,7 @@ const I18N = {
     priority_normal: "Normal",
     priority_high: "High",
     priority_first: "First — download first",
-    priority_first_active: "First is active: other files were set to Skip",
+    priority_first_active: "Focus is active: other files will resume automatically when this file finishes",
 
     theme_toggle: "Theme",
     settings_title: "Settings",

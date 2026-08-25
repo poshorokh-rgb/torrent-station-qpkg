@@ -38,6 +38,8 @@ CONF_FILE="$DATA_DIR/settings.json"
 CONF_TEMPLATE="$QPKG_ROOT/config/settings.json.template"
 CRED_FILE="$STATE_DIR/rpc-credentials.txt"
 LEGACY_CRED_FILE="$QPKG_ROOT/rpc-credentials.txt"
+FOCUS_MONITOR="$QPKG_ROOT/shared/focus-monitor.py"
+FOCUS_PID_FILE="$STATE_DIR/focus-monitor.pid"
 PID_FILE="$QPKG_ROOT/transmission.pid"
 LOG_FILE="$QPKG_ROOT/transmission.log"
 
@@ -172,6 +174,28 @@ ensure_hooks() {
     done
 }
 
+focus_monitor_running() {
+    [ -r "$FOCUS_PID_FILE" ] || return 1
+    pid="$(cat "$FOCUS_PID_FILE" 2>/dev/null)"
+    case "$pid" in ''|*[!0-9]*) return 1 ;; esac
+    kill -0 "$pid" 2>/dev/null
+}
+
+ensure_focus_monitor() {
+    focus_monitor_running && return 0
+    rm -f "$FOCUS_PID_FILE"
+    [ -x /usr/local/bin/python ] || { log "focus auto-resume unavailable: Python is missing"; return 0; }
+    /usr/local/bin/python "$FOCUS_MONITOR" "$CRED_FILE" "$RPC_PORT" >> "$LOG_FILE" 2>&1 &
+    echo $! > "$FOCUS_PID_FILE"
+}
+
+stop_focus_monitor() {
+    if focus_monitor_running; then
+        kill "$(cat "$FOCUS_PID_FILE")" 2>/dev/null || true
+    fi
+    rm -f "$FOCUS_PID_FILE"
+}
+
 ensure_history() {
     mkdir -p "$HISTORY_DIR"
     [ -f "$HISTORY_FILE" ] || : > "$HISTORY_FILE"
@@ -240,6 +264,7 @@ start() {
 
     if is_running; then
         log "already running (pid $(read_pid))"
+        ensure_focus_monitor
         return 0
     fi
 
@@ -255,12 +280,14 @@ start() {
     sleep 1
     if is_running; then
         log "started (pid $(read_pid))"
+        ensure_focus_monitor
     else
         die "transmission-daemon failed to start, check $LOG_FILE"
     fi
 }
 
 stop() {
+    stop_focus_monitor
     if is_running; then
         PID="$(read_pid)"
         log "stopping (pid $PID)"
