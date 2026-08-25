@@ -27,10 +27,17 @@ WEBUI_DIR="$QPKG_ROOT/webui"                # our custom qBittorrent-styled UI (
 WEB_TARGET_DIR="$OPT/share/transmission/public_html"  # where transmission-daemon actually serves the UI from
                                              # (this build has no --web-directory flag, so we overwrite the
                                              # stock files here instead — same trick transmission-web-control uses)
-DATA_DIR="$QPKG_ROOT/data"                 # transmission --config-dir (settings.json, resume, blocklists)
+# QTS may remove and recreate the whole QPKG application directory during an
+# App Center upgrade. Keep all user state one level above it, on the selected
+# data volume, so torrent queues and resume data survive every update.
+VOL="${QPKG_ROOT%/.qpkg/*}"
+STATE_DIR="$VOL/.torrentstation-data"
+DATA_DIR="$STATE_DIR/transmission"          # settings.json, resume, torrent metadata, blocklists
+LEGACY_DATA_DIR="$QPKG_ROOT/data"
 CONF_FILE="$DATA_DIR/settings.json"
 CONF_TEMPLATE="$QPKG_ROOT/config/settings.json.template"
-CRED_FILE="$QPKG_ROOT/rpc-credentials.txt"
+CRED_FILE="$STATE_DIR/rpc-credentials.txt"
+LEGACY_CRED_FILE="$QPKG_ROOT/rpc-credentials.txt"
 PID_FILE="$QPKG_ROOT/transmission.pid"
 LOG_FILE="$QPKG_ROOT/transmission.log"
 
@@ -40,10 +47,7 @@ WATCH_DIR="/share/Download/Torrents/.watch"
 
 RPC_PORT=9091
 
-# Download history — lives on the volume itself, OUTSIDE $QPKG_ROOT, so it
-# survives even if the whole .qpkg/TorrentStation folder gets deleted (as
-# opposed to living under $DATA_DIR, which would not survive that).
-VOL="${QPKG_ROOT%/.qpkg/*}"
+# Download history also lives outside the replaceable QPKG directory.
 HISTORY_DIR="$VOL/.torrentstation-history"
 HISTORY_FILE="$HISTORY_DIR/history.jsonl"
 HOOKS_DIR="$QPKG_ROOT/shared/hooks"
@@ -68,7 +72,25 @@ gen_password() {
     tr -dc 'A-Za-z0-9' < /dev/urandom 2>/dev/null | head -c 24
 }
 
+migrate_legacy_state() {
+    mkdir -p "$STATE_DIR"
+    # Direct upgrades from releases up to 1.1.20 still have the state below
+    # $QPKG_ROOT. Migrate it once while the old directory is present. Future
+    # App Center upgrades can then freely replace the program files.
+    if [ ! -e "$DATA_DIR/settings.json" ] && [ -d "$LEGACY_DATA_DIR" ]; then
+        log "migrating torrent state to $DATA_DIR"
+        mkdir -p "$DATA_DIR"
+        cp -a "$LEGACY_DATA_DIR"/. "$DATA_DIR"/ || die "failed to migrate torrent state"
+    fi
+    if [ ! -f "$CRED_FILE" ] && [ -f "$LEGACY_CRED_FILE" ]; then
+        cp -p "$LEGACY_CRED_FILE" "$CRED_FILE" || die "failed to migrate credentials"
+    fi
+    chmod 700 "$STATE_DIR" 2>/dev/null || true
+    chmod 600 "$CRED_FILE" 2>/dev/null || true
+}
+
 ensure_config() {
+    migrate_legacy_state
     mkdir -p "$DATA_DIR" "$DOWNLOAD_DIR" "$INCOMPLETE_DIR" "$WATCH_DIR"
     chmod 700 "$DATA_DIR" 2>/dev/null || true
 

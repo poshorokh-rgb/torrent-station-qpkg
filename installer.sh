@@ -105,6 +105,6 @@ set_qpkg_value RC_Number "$QPKG_RC_NUM"
 echo "[TorrentStation] (re)starting service"
 "$QPKG_ROOT/shared/TorrentStation.sh" restart
 
-echo "[TorrentStation] done. Check $QPKG_ROOT/rpc-credentials.txt for the web UI login."
+echo "[TorrentStation] done. Credentials and torrent state are stored outside the app directory, on the NAS data volume."
 echo 2 > /tmp/update_process
 echo 3 > /tmp/update_process
