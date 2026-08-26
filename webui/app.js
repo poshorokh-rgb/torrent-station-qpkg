@@ -452,21 +452,29 @@ async function act(method, extra = {}) {
 const modalCategories = document.getElementById("modal-categories");
 const categoriesInput = document.getElementById("categories-input");
 const categoriesClear = document.getElementById("categories-clear");
+let categoryTargetIds = [];
 
-function openCategories() {
-  if (!selected.size) { toast(t("categories_select_first"), "error"); return; }
-  const picked = torrents.filter((tor) => selected.has(tor.id));
+function openCategories(targetIds = Array.from(selected)) {
+  const ids = [...new Set(targetIds)];
+  if (!ids.length) { toast(t("categories_select_first"), "error"); return; }
+  const picked = torrents.filter((tor) => ids.includes(tor.id));
+  if (!picked.length) { toast(t("categories_select_first"), "error"); return; }
+  categoryTargetIds = picked.map((tor) => tor.id);
   const first = picked[0] || { labels: [] };
-  const sameLabels = picked.every((tor) => JSON.stringify(tor.labels || []) === JSON.stringify(first.labels || []));
-  categoriesInput.value = sameLabels ? (first.labels || []).join(", ") : "";
+  const labelsOf = (tor) => (tor.labels || []).filter((label) => !isFocusLabel(label));
+  const sameLabels = picked.every((tor) => JSON.stringify(labelsOf(tor)) === JSON.stringify(labelsOf(first)));
+  categoriesInput.value = sameLabels ? labelsOf(first).join(", ") : "";
   categoriesInput.placeholder = sameLabels ? t("add_category_ph") : t("categories_mixed_ph");
   categoriesClear.checked = false;
   categoriesInput.disabled = false;
-  document.getElementById("categories-target").textContent = tf("categories_target", selected.size);
+  document.getElementById("categories-target").textContent = tf("categories_target", categoryTargetIds.length);
   modalCategories.classList.add("show");
   setTimeout(() => categoriesInput.focus(), 50);
 }
-function closeCategories() { modalCategories.classList.remove("show"); }
+function closeCategories() {
+  modalCategories.classList.remove("show");
+  categoryTargetIds = [];
+}
 
 document.getElementById("categories-close").addEventListener("click", closeCategories);
 document.getElementById("categories-cancel").addEventListener("click", closeCategories);
@@ -479,11 +487,21 @@ document.getElementById("categories-save").addEventListener("click", async () =>
   const source = categoriesInput.value.trim();
   if (/\r|\n/.test(source)) { toast(t("toast_invalid_category"), "error"); return; }
   const labels = categoriesClear.checked ? [] : labelsFromInput(source);
+  const targets = torrents.filter((tor) => categoryTargetIds.includes(tor.id));
+  if (!targets.length) { closeCategories(); return; }
+  const refreshDetails = currentDetailsId != null && categoryTargetIds.includes(currentDetailsId);
   try {
-    await rpc("torrent-set", { ids: Array.from(selected), labels });
+    // Focus is represented by an internal label. Preserve it while changing
+    // user-visible categories, otherwise a category edit could prevent the
+    // monitor from restoring temporarily skipped files.
+    await Promise.all(targets.map((tor) => rpc("torrent-set", {
+      ids: [tor.id],
+      labels: [...labels, ...(tor.labels || []).filter(isFocusLabel)],
+    })));
     closeCategories();
     toast(t("categories_saved"), "success");
     poll();
+    if (refreshDetails) fetchDetails();
   } catch (e) {
     toast(t("toast_error") + e.message, "error");
   }
@@ -882,8 +900,7 @@ function renderDetailsGeneral(tor) {
     [t("d_uploaded"), fmtBytes(tor.uploadedEver)],
     [t("d_ratio"), fmtRatio(tor.uploadRatio)],
     [t("d_location"), tor.downloadDir],
-    [t("add_category"), (tor.labels || []).join(", ") || t("sb_uncategorized")],
-    [t("d_hash"), tor.hashString],
+    [t("d_hash"), tor.hashString, true],
     [t("d_added"), fmtDate(tor.addedDate)],
     [t("d_completed"), tor.doneDate ? fmtDate(tor.doneDate) : "—"],
     [t("d_pieces"), `${tor.pieceCount} × ${fmtBytes(tor.pieceSize)}`],
@@ -893,10 +910,20 @@ function renderDetailsGeneral(tor) {
   ];
   if (tor.error && tor.error !== 0) rows.splice(1, 0, [t("d_error"), tor.errorString || t("st_error")]);
 
-  const dl = rows.map(([k, v], i) => {
-    const mono = i === 6; // hash
+  const dl = rows.map(([k, v, mono]) => {
     return `<dt>${escapeHtml(k)}</dt><dd${mono ? ' class="mono"' : ""}>${escapeHtml(String(v))}</dd>`;
   }).join("");
+
+  const labels = (tor.labels || []).filter((label) => !isFocusLabel(label));
+  const categoryValue = labels.length
+    ? labels.map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")
+    : `<span class="detail-category-empty">${escapeHtml(t("sb_uncategorized"))}</span>`;
+  const categoryRow = `
+    <dt>${escapeHtml(t("add_category"))}</dt>
+    <dd class="detail-category">
+      <span class="detail-category-labels">${categoryValue}</span>
+      <button type="button" class="detail-category-edit" data-action="edit-category">${escapeHtml(t("details_edit_category"))}</button>
+    </dd>`;
 
   const trackers = (tor.trackerStats || []).map((ts) => `
     <div class="tracker-row">
@@ -905,10 +932,16 @@ function renderDetailsGeneral(tor) {
     </div>`).join("") || `<div class="tracker-row"><span class="t-url">—</span></div>`;
 
   detailsGeneralEl.innerHTML = `
-    <dl class="detail-grid">${dl}</dl>
+    <dl class="detail-grid">${dl}${categoryRow}</dl>
     <div class="detail-section-title">${escapeHtml(t("d_trackers_title"))}</div>
     ${trackers}`;
 }
+
+detailsGeneralEl.addEventListener("click", (event) => {
+  if (event.target.closest("[data-action=\"edit-category\"]") && currentDetailsId != null) {
+    openCategories([currentDetailsId]);
+  }
+});
 
 function renderDetailsFiles(tor) {
   const files = tor.files || [];
