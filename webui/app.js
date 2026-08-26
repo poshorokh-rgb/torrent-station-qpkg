@@ -708,6 +708,65 @@ async function addTorrent(source, options) {
 }
 
 /* ==========================================================================
+   WINDOW-WIDE TORRENT DROP
+   ========================================================================== */
+const globalDropzone = document.getElementById("global-dropzone");
+let windowDragDepth = 0;
+
+function hasDroppedFiles(event) {
+  return event.dataTransfer && Array.from(event.dataTransfer.types || []).includes("Files");
+}
+
+function isInsideAddModal(target) {
+  return modal.classList.contains("show") && target.closest("#modal-add");
+}
+
+async function addDroppedTorrents(files) {
+  let added = 0;
+  let failed = 0;
+  for (const file of files) {
+    if (!file.name.toLowerCase().endsWith(".torrent")) continue;
+    if (file.size > 16 * 1024 * 1024) {
+      toast(t("toast_file_too_large"), "error");
+      continue;
+    }
+    try {
+      const metainfo = await fileToBase64(file);
+      await addTorrent({ metainfo }, { paused: false, labels: [], downloadDir: "", ratioEnabled: false, ratio: null });
+      added++;
+    } catch (e) {
+      failed++;
+    }
+  }
+  if (added) { toast(t("toast_added") + added, "success"); poll(); }
+  if (failed) toast(t("toast_add_failed") + failed, "error");
+}
+
+document.addEventListener("dragenter", (event) => {
+  if (!hasDroppedFiles(event) || isInsideAddModal(event.target)) return;
+  event.preventDefault();
+  windowDragDepth++;
+  globalDropzone.classList.add("show");
+});
+document.addEventListener("dragover", (event) => {
+  if (!hasDroppedFiles(event) || isInsideAddModal(event.target)) return;
+  event.preventDefault();
+  globalDropzone.classList.add("show");
+});
+document.addEventListener("dragleave", (event) => {
+  if (!hasDroppedFiles(event) || isInsideAddModal(event.target)) return;
+  windowDragDepth = Math.max(0, windowDragDepth - 1);
+  if (!windowDragDepth) globalDropzone.classList.remove("show");
+});
+document.addEventListener("drop", (event) => {
+  if (!hasDroppedFiles(event) || isInsideAddModal(event.target)) return;
+  event.preventDefault();
+  windowDragDepth = 0;
+  globalDropzone.classList.remove("show");
+  addDroppedTorrents(Array.from(event.dataTransfer.files));
+});
+
+/* ==========================================================================
    DETAILS MODAL — general info + per-file priority
    ========================================================================== */
 const modalDetails = document.getElementById("modal-details");
@@ -751,6 +810,12 @@ function closeDetails() {
   if (detailsTimer) clearInterval(detailsTimer);
   detailsTimer = null;
 }
+
+// `pointerdown` happens before a row's click handler opens the panel, so a
+// double-click on a torrent still opens Details instead of closing it again.
+document.addEventListener("pointerdown", (event) => {
+  if (modalDetails.classList.contains("show") && !modalDetails.contains(event.target)) closeDetails();
+});
 
 async function fetchDetails() {
   if (currentDetailsId == null) return;
