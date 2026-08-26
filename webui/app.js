@@ -933,8 +933,16 @@ els.head.addEventListener("click", (event) => {
   if (!header) return;
   const key = header.dataset.sort;
   if (key === "peers") {
-    sortKey = sortKey === "seeds" ? "peers" : "seeds";
-    sortDir = -1;
+    if (sortKey === "seeds") {
+      if (sortDir === -1) sortDir = 1;
+      else { sortKey = "peers"; sortDir = -1; }
+    } else if (sortKey === "peers") {
+      if (sortDir === -1) sortDir = 1;
+      else { sortKey = "seeds"; sortDir = -1; }
+    } else {
+      sortKey = "seeds";
+      sortDir = -1;
+    }
   } else if (sortKey === key) sortDir *= -1;
   else { sortKey = key; sortDir = 1; }
   markSortIndicator();
