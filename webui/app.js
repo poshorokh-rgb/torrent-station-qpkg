@@ -128,6 +128,9 @@ let lastTableStateKey = null;
 const els = {
   body: document.getElementById("torrent-body"),
   head: document.getElementById("torrent-head"),
+  table: document.querySelector("table.torrents"),
+  tableCols: document.getElementById("torrent-cols"),
+  tableWrap: document.getElementById("table-wrap"),
   empty: document.getElementById("empty-state"),
   statDown: document.getElementById("stat-down"),
   statUp: document.getElementById("stat-up"),
@@ -151,44 +154,44 @@ const FIELDS = [
 
 const TABLE_COLUMNS_KEY = "tq_table_columns_v1";
 const TABLE_COLUMNS = [
-  { id: "name", label: "col_name", sort: "name", fixed: true, width: "36%", cell: (tor) => {
+  { id: "name", label: "col_name", sort: "name", fixed: true, defaultWidth: 320, minWidth: 180, cell: (tor) => {
     const error = tor.error && tor.error !== 0;
     const title = error ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
     const labels = (tor.labels || []).filter((label) => !isFocusLabel(label));
     return `<td class="name-cell"${title}><div class="fname">${escapeHtml(tor.name)}</div>${labels.map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")}</td>`;
   } },
-  { id: "size", label: "col_size", sort: "size", num: true, cell: (tor) => `<td class="num">${fmtBytes(tor.totalSize)}</td>` },
-  { id: "progress", label: "col_progress", sort: "progress", cell: (tor) => {
+  { id: "size", label: "col_size", sort: "size", num: true, defaultWidth: 92, minWidth: 72, cell: (tor) => `<td class="num">${fmtBytes(tor.totalSize)}</td>` },
+  { id: "progress", label: "col_progress", sort: "progress", defaultWidth: 132, minWidth: 124, cell: (tor) => {
     const pct = Math.round(torrentProgress(tor) * 100);
     const color = tor.status === 6 ? "var(--progress-green)" : tor.status === 0 ? "var(--progress-faint)" : "var(--progress-amber)";
     return `<td><div class="progress-track"><div class="progress-fill" style="width:${pct}%; --fill-c:${color}"></div><div class="progress-pct">${pct}%</div></div></td>`;
   } },
-  { id: "status", label: "col_status", sort: "status", cell: (tor) => {
+  { id: "status", label: "col_status", sort: "status", defaultWidth: 118, minWidth: 94, cell: (tor) => {
     const meta = statusMeta(tor.status);
     const error = tor.error && tor.error !== 0;
     return `<td><span class="status-pill"><span class="dot ${error ? "error" : meta.dot}"></span>${error ? t("st_error") : meta.label}</span></td>`;
   } },
-  { id: "added", label: "col_added", sort: "added", num: true, cell: (tor) => `<td class="num" title="${escapeHtml(fmtDate(tor.addedDate))}">${fmtAgo(tor.addedDate)}</td>` },
-  { id: "added_date", label: "col_added_date", sort: "addedDate", num: true, cell: (tor) => `<td class="num">${escapeHtml(fmtDate(tor.addedDate))}</td>` },
-  { id: "down", label: "col_down", sort: "down", num: true, cell: (tor) => `<td class="num ${tor.rateDownload ? "rate-down" : "rate-zero"}">${tor.rateDownload ? fmtRate(tor.rateDownload) : "—"}</td>` },
-  { id: "up", label: "col_up", sort: "up", num: true, cell: (tor) => `<td class="num ${tor.rateUpload ? "rate-up" : "rate-zero"}">${tor.rateUpload ? fmtRate(tor.rateUpload) : "—"}</td>` },
-  { id: "eta", label: "col_eta", sort: "eta", num: true, cell: (tor) => `<td class="num">${tor.status === 4 ? fmtEta(tor.eta) : "—"}</td>` },
-  { id: "ratio", label: "col_ratio", sort: "ratio", num: true, cell: (tor) => `<td class="num">${fmtRatio(tor.uploadRatio)}</td>` },
-  { id: "peers", label: "col_peers", sort: "peers", num: true, cell: (tor) => `<td class="num">${seedsOf(tor)}/${tor.peersConnected}</td>` },
-  { id: "seeds", label: "col_seeds", sort: "seeds", num: true, cell: (tor) => `<td class="num">${seedsOf(tor)}</td>` },
-  { id: "downloaded", label: "col_downloaded", sort: "downloaded", num: true, cell: (tor) => `<td class="num">${fmtBytes(tor.downloadedEver)}</td>` },
-  { id: "uploaded", label: "col_uploaded", sort: "uploaded", num: true, cell: (tor) => `<td class="num">${fmtBytes(tor.uploadedEver)}</td>` },
-  { id: "remaining", label: "col_remaining", sort: "remaining", num: true, cell: (tor) => `<td class="num">${tor.leftUntilDone ? fmtBytes(tor.leftUntilDone) : "—"}</td>` },
-  { id: "location", label: "col_location", sort: "location", cell: (tor) => `<td class="location-cell" title="${escapeHtml(tor.downloadDir || "")}">${escapeHtml(tor.downloadDir || "—")}</td>` },
-  { id: "completed", label: "col_completed", sort: "completed", num: true, cell: (tor) => `<td class="num" title="${escapeHtml(tor.doneDate ? fmtDate(tor.doneDate) : "")}">${tor.doneDate ? fmtAgo(tor.doneDate) : "—"}</td>` },
-  { id: "files", label: "col_files", sort: "files", num: true, cell: (tor) => `<td class="num">${Number.isFinite(tor.fileCount) ? tor.fileCount : "—"}</td>` },
-  { id: "private", label: "col_private", sort: "private", cell: (tor) => `<td>${tor.isPrivate ? t("yes") : t("no")}</td>` },
-  { id: "error", label: "col_error", sort: "error", cell: (tor) => `<td class="error-cell" title="${escapeHtml(tor.errorString || "")}">${escapeHtml(tor.errorString || "—")}</td>` },
+  { id: "added", label: "col_added", sort: "added", num: true, defaultWidth: 98, minWidth: 82, cell: (tor) => `<td class="num" title="${escapeHtml(fmtDate(tor.addedDate))}">${fmtAgo(tor.addedDate)}</td>` },
+  { id: "added_date", label: "col_added_date", sort: "addedDate", num: true, defaultWidth: 142, minWidth: 125, cell: (tor) => `<td class="num">${escapeHtml(fmtDate(tor.addedDate))}</td>` },
+  { id: "down", label: "col_down", sort: "down", num: true, defaultWidth: 108, minWidth: 94, cell: (tor) => `<td class="num ${tor.rateDownload ? "rate-down" : "rate-zero"}">${tor.rateDownload ? fmtRate(tor.rateDownload) : "—"}</td>` },
+  { id: "up", label: "col_up", sort: "up", num: true, defaultWidth: 108, minWidth: 94, cell: (tor) => `<td class="num ${tor.rateUpload ? "rate-up" : "rate-zero"}">${tor.rateUpload ? fmtRate(tor.rateUpload) : "—"}</td>` },
+  { id: "eta", label: "col_eta", sort: "eta", num: true, defaultWidth: 82, minWidth: 66, cell: (tor) => `<td class="num">${tor.status === 4 ? fmtEta(tor.eta) : "—"}</td>` },
+  { id: "ratio", label: "col_ratio", sort: "ratio", num: true, defaultWidth: 74, minWidth: 62, cell: (tor) => `<td class="num">${fmtRatio(tor.uploadRatio)}</td>` },
+  { id: "peers", label: "col_peers", sort: "peers", num: true, defaultWidth: 96, minWidth: 78, cell: (tor) => `<td class="num">${seedsOf(tor)}/${tor.peersConnected}</td>` },
+  { id: "seeds", label: "col_seeds", sort: "seeds", num: true, defaultWidth: 76, minWidth: 62, cell: (tor) => `<td class="num">${seedsOf(tor)}</td>` },
+  { id: "downloaded", label: "col_downloaded", sort: "downloaded", num: true, defaultWidth: 112, minWidth: 94, cell: (tor) => `<td class="num">${fmtBytes(tor.downloadedEver)}</td>` },
+  { id: "uploaded", label: "col_uploaded", sort: "uploaded", num: true, defaultWidth: 112, minWidth: 94, cell: (tor) => `<td class="num">${fmtBytes(tor.uploadedEver)}</td>` },
+  { id: "remaining", label: "col_remaining", sort: "remaining", num: true, defaultWidth: 124, minWidth: 102, cell: (tor) => `<td class="num">${tor.leftUntilDone ? fmtBytes(tor.leftUntilDone) : "—"}</td>` },
+  { id: "location", label: "col_location", sort: "location", defaultWidth: 250, minWidth: 140, cell: (tor) => `<td class="location-cell" title="${escapeHtml(tor.downloadDir || "")}">${escapeHtml(tor.downloadDir || "—")}</td>` },
+  { id: "completed", label: "col_completed", sort: "completed", num: true, defaultWidth: 142, minWidth: 125, cell: (tor) => `<td class="num" title="${escapeHtml(tor.doneDate ? fmtDate(tor.doneDate) : "")}">${tor.doneDate ? fmtAgo(tor.doneDate) : "—"}</td>` },
+  { id: "files", label: "col_files", sort: "files", num: true, defaultWidth: 74, minWidth: 60, cell: (tor) => `<td class="num">${Number.isFinite(tor.fileCount) ? tor.fileCount : "—"}</td>` },
+  { id: "private", label: "col_private", sort: "private", defaultWidth: 88, minWidth: 70, cell: (tor) => `<td>${tor.isPrivate ? t("yes") : t("no")}</td>` },
+  { id: "error", label: "col_error", sort: "error", defaultWidth: 230, minWidth: 120, cell: (tor) => `<td class="error-cell" title="${escapeHtml(tor.errorString || "")}">${escapeHtml(tor.errorString || "—")}</td>` },
 ];
 const DEFAULT_TABLE_COLUMN_IDS = ["name", "size", "progress", "status", "added", "down", "up", "eta", "ratio", "peers"];
 
 function defaultTableColumns() {
-  return { order: TABLE_COLUMNS.map((column) => column.id), visible: DEFAULT_TABLE_COLUMN_IDS };
+  return { order: TABLE_COLUMNS.map((column) => column.id), visible: DEFAULT_TABLE_COLUMN_IDS, widths: {} };
 }
 
 function loadTableColumns() {
@@ -200,7 +203,14 @@ function loadTableColumns() {
     const order = saved.order.filter((id) => known.has(id));
     for (const column of TABLE_COLUMNS) if (!order.includes(column.id)) order.push(column.id);
     const visible = saved.visible.filter((id) => known.has(id) && id !== "name");
-    return { order: ["name", ...order.filter((id) => id !== "name")], visible: ["name", ...visible] };
+    const widths = {};
+    if (saved.widths && typeof saved.widths === "object") {
+      for (const column of TABLE_COLUMNS) {
+        const width = Number(saved.widths[column.id]);
+        if (Number.isFinite(width) && width >= column.minWidth && width <= 1200) widths[column.id] = Math.round(width);
+      }
+    }
+    return { order: ["name", ...order.filter((id) => id !== "name")], visible: ["name", ...visible], widths };
   } catch (e) {
     return defaults;
   }
@@ -219,6 +229,21 @@ function saveTableColumns() {
   localStorage.setItem(TABLE_COLUMNS_KEY, JSON.stringify(tableColumns));
 }
 
+function tableColumnWidth(column) {
+  return tableColumns.widths[column.id] || column.defaultWidth;
+}
+
+function renderTableGeometry() {
+  const columns = visibleTableColumns();
+  els.tableCols.innerHTML = columns.map((column) => `<col data-column-id="${column.id}" style="width:${tableColumnWidth(column)}px">`).join("");
+  syncTableWidth();
+}
+
+function syncTableWidth() {
+  const width = visibleTableColumns().reduce((total, column) => total + tableColumnWidth(column), 0);
+  els.table.style.width = Math.max(els.tableWrap.clientWidth, width) + "px";
+}
+
 const columnsControl = document.querySelector(".columns-control");
 const columnsButton = document.getElementById("btn-columns");
 const columnsMenu = document.getElementById("columns-menu");
@@ -226,9 +251,11 @@ const columnsList = document.getElementById("columns-list");
 
 function renderTableHeader() {
   els.head.innerHTML = visibleTableColumns().map((column) => `
-    <th data-sort="${column.sort}"${column.num ? ' class="num"' : ""}${column.width ? ` style="width:${column.width}"` : ""}>
+    <th data-sort="${column.sort}" data-column-id="${column.id}"${column.num ? ' class="num"' : ""}>
       <span>${escapeHtml(t(column.label))}</span> <span class="arrow"></span>
+      <span class="column-resizer" data-column-resize="${column.id}" aria-hidden="true"></span>
     </th>`).join("");
+  renderTableGeometry();
   markSortIndicator();
 }
 
@@ -480,6 +507,7 @@ function renderTable() {
   const presentIds = new Set(torrents.map((tor) => tor.id));
   for (const id of Array.from(selected)) if (!presentIds.has(id)) selected.delete(id);
   updateToolbarState();
+  syncTableWidth();
 
   const stateKey = tableStateKey();
   if (stateKey === lastTableStateKey) return;
@@ -895,6 +923,7 @@ renderTableHeader();
 renderColumnsMenu();
 
 els.head.addEventListener("click", (event) => {
+  if (event.target.closest(".column-resizer")) return;
   const header = event.target.closest("th[data-sort]");
   if (!header) return;
   const key = header.dataset.sort;
@@ -903,6 +932,38 @@ els.head.addEventListener("click", (event) => {
   markSortIndicator();
   renderTable();
 });
+
+els.head.addEventListener("pointerdown", (event) => {
+  const handle = event.target.closest("[data-column-resize]");
+  if (!handle || event.button !== 0) return;
+  const id = handle.dataset.columnResize;
+  const column = TABLE_COLUMNS.find((item) => item.id === id);
+  if (!column) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const startX = event.clientX;
+  const startWidth = tableColumnWidth(column);
+  document.body.classList.add("is-resizing-columns");
+
+  const move = (moveEvent) => {
+    const width = Math.max(column.minWidth, Math.round(startWidth + moveEvent.clientX - startX));
+    tableColumns.widths[id] = width;
+    const col = els.tableCols.querySelector(`[data-column-id="${id}"]`);
+    if (col) col.style.width = width + "px";
+    syncTableWidth();
+  };
+  const finish = () => {
+    document.body.classList.remove("is-resizing-columns");
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", finish);
+    window.removeEventListener("pointercancel", finish);
+    saveTableColumns();
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", finish);
+  window.addEventListener("pointercancel", finish);
+});
+window.addEventListener("resize", syncTableWidth);
 
 columnsButton.addEventListener("click", () => {
   const willOpen = columnsMenu.hidden;

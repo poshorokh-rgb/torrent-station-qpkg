@@ -386,7 +386,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* ---- Table ---- */
 .table-wrap { flex: 1; overflow: auto; position: relative; }
 
-table.torrents { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.torrents { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12.5px; }
 
 table.torrents thead {
   position: sticky; top: 0; z-index: 5;
@@ -394,6 +394,7 @@ table.torrents thead {
 }
 
 table.torrents th {
+  position: relative;
   text-align: left;
   padding: 10px 14px;
   font-size: 10px;
@@ -410,6 +411,16 @@ table.torrents th:hover { color: var(--text-hi); }
 table.torrents th.sorted { color: var(--accent); }
 table.torrents th .arrow { margin-left: 4px; opacity: 0.7; }
 table.torrents th.num, table.torrents td.num { text-align: right; }
+.column-resizer {
+  position: absolute; top: 0; right: -5px; bottom: 0; z-index: 7; width: 10px;
+  cursor: col-resize;
+}
+.column-resizer::after {
+  content: ""; position: absolute; top: 7px; right: 4px; bottom: 7px; width: 1px;
+  background: transparent; transition: background .12s;
+}
+.column-resizer:hover::after, .is-resizing-columns .column-resizer::after { background: var(--accent); }
+body.is-resizing-columns { cursor: col-resize; user-select: none; }
 
 table.torrents tbody tr {
   border-bottom: 1px solid var(--line);
@@ -425,7 +436,9 @@ table.torrents td {
   color: var(--text-mid);
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
 }
+table.torrents td.num { white-space: nowrap; }
 
 td.name-cell { color: var(--text-hi); max-width: 340px; }
 td.name-cell .fname {
