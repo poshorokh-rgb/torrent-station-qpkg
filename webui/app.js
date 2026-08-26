@@ -451,15 +451,19 @@ async function act(method, extra = {}) {
    the selected torrents, so the result is shared with other clients too. */
 const modalCategories = document.getElementById("modal-categories");
 const categoriesTitle = document.getElementById("categories-dialog-title");
+const categoriesSelectedLabel = document.getElementById("categories-selected-label");
 const categoriesSelectedEl = document.getElementById("categories-selected");
+const categoriesQuickSection = document.getElementById("categories-quick-section");
 const categoriesQuickEl = document.getElementById("categories-quick");
 const categoriesSearch = document.getElementById("categories-search");
 const categoriesSearchResults = document.getElementById("categories-search-results");
 const categoriesNew = document.getElementById("categories-new");
 let categoryTargetIds = [];
 let categoryDraftLabels = [];
+let categoryEditorMode = "assign";
 
-const QUICK_CATEGORIES = ["Сериалы", "Фильмы", "Документалки", "4K"];
+const CATEGORY_CATALOG_KEY = "tq_category_catalog_v1";
+const DEFAULT_CATEGORY_CATALOG = ["Сериалы", "Фильмы", "Документалки", "4K"];
 
 function categoryKey(label) {
   return String(label).trim().toLocaleLowerCase(currentLang);
@@ -479,37 +483,66 @@ function uniqueCategories(labels) {
   });
 }
 
+function loadCategoryCatalog() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(CATEGORY_CATALOG_KEY));
+    if (Array.isArray(stored)) return uniqueCategories(stored);
+  } catch (e) { /* use the initial catalog */ }
+  return [...DEFAULT_CATEGORY_CATALOG];
+}
+
+let categoryCatalog = loadCategoryCatalog();
+
+function saveCategoryCatalog() {
+  try { localStorage.setItem(CATEGORY_CATALOG_KEY, JSON.stringify(categoryCatalog)); }
+  catch (e) { toast(t("toast_error") + e.message, "error"); }
+}
+
+function addToCategoryCatalog(label) {
+  const before = categoryCatalog.length;
+  categoryCatalog = uniqueCategories([...categoryCatalog, label]);
+  if (categoryCatalog.length !== before) saveCategoryCatalog();
+}
+
+function removeFromCategoryCatalog(label) {
+  const key = categoryKey(label);
+  categoryCatalog = categoryCatalog.filter((item) => categoryKey(item) !== key);
+  saveCategoryCatalog();
+}
+
 function visibleLabelsOf(tor) {
   return (tor.labels || []).filter((label) => !isFocusLabel(label));
 }
 
 function knownCategories() {
-  const labels = [...QUICK_CATEGORIES];
+  const labels = [...categoryCatalog];
   torrents.forEach((tor) => labels.push(...visibleLabelsOf(tor)));
   return uniqueCategories(labels).sort((a, b) => a.localeCompare(b, currentLang));
 }
 
 function categoryButton(label, action, active = false) {
-  return `<button type="button" class="category-chip${active ? " active" : ""}" data-category-action="${action}" data-category="${escapeHtml(label)}"${action === "choose" ? ` aria-pressed="${active}"` : ""}>${escapeHtml(label)}${action === "remove" ? '<span aria-hidden="true">×</span>' : ""}</button>`;
+  const removable = action === "remove" || action === "catalog-remove";
+  return `<button type="button" class="category-chip${active ? " active" : ""}" data-category-action="${action}" data-category="${escapeHtml(label)}"${action === "choose" ? ` aria-pressed="${active}"` : ""}>${escapeHtml(label)}${removable ? '<span aria-hidden="true">×</span>' : ""}</button>`;
 }
 
 function categorySearchResult(label) {
-  const active = categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label));
+  const active = (categoryEditorMode === "catalog" ? categoryCatalog : categoryDraftLabels)
+    .some((item) => categoryKey(item) === categoryKey(label));
   return `<span class="category-search-result">${categoryButton(label, "choose", active)}<button type="button" class="category-delete-button" data-category-delete="${escapeHtml(label)}" title="${escapeHtml(t("categories_delete_action"))}" aria-label="${escapeHtml(t("categories_delete_action"))}">×</button></span>`;
 }
 
 function renderCategoryEditor() {
-  categoriesSelectedEl.innerHTML = categoryDraftLabels.length
-    ? categoryDraftLabels.map((label) => categoryButton(label, "remove")).join("")
+  const displayed = categoryEditorMode === "catalog" ? categoryCatalog : categoryDraftLabels;
+  categoriesSelectedEl.innerHTML = displayed.length
+    ? displayed.map((label) => categoryButton(label, categoryEditorMode === "catalog" ? "catalog-remove" : "remove")).join("")
     : `<span class="category-empty">${escapeHtml(t("categories_empty"))}</span>`;
-  categoriesQuickEl.innerHTML = QUICK_CATEGORIES.map((label) =>
+  categoriesQuickEl.innerHTML = categoryCatalog.map((label) =>
     categoryButton(label, "choose", categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label)))
   ).join("");
 
   const query = normalizeCategory(categoriesSearch.value).toLocaleLowerCase(currentLang);
-  const quickKeys = new Set(QUICK_CATEGORIES.map(categoryKey));
   const matches = query ? knownCategories().filter((label) =>
-    !quickKeys.has(categoryKey(label)) && label.toLocaleLowerCase(currentLang).includes(query)
+    label.toLocaleLowerCase(currentLang).includes(query)
   ) : [];
   categoriesSearchResults.innerHTML = matches.length
     ? matches.map(categorySearchResult).join("")
@@ -520,15 +553,29 @@ function addCategoryToDraft(value) {
   const label = normalizeCategory(value);
   if (!label) return;
   if (/\r|\n/.test(label)) { toast(t("toast_invalid_category"), "error"); return; }
-  categoryDraftLabels = uniqueCategories([...categoryDraftLabels, label]);
+  addToCategoryCatalog(label);
+  if (categoryEditorMode === "assign") categoryDraftLabels = uniqueCategories([...categoryDraftLabels, label]);
   renderCategoryEditor();
 }
 
 function openCategories(targetIds) {
   const ids = Array.isArray(targetIds) ? [...new Set(targetIds)] : Array.from(selected);
-  if (!ids.length) { toast(t("categories_select_first"), "error"); return; }
   const picked = torrents.filter((tor) => ids.includes(tor.id));
-  if (!picked.length) { toast(t("categories_select_first"), "error"); return; }
+  categoryEditorMode = picked.length ? "assign" : "catalog";
+  categoriesQuickSection.hidden = categoryEditorMode === "catalog";
+  document.getElementById("categories-save").hidden = categoryEditorMode === "catalog";
+  categoriesSelectedLabel.textContent = t(categoryEditorMode === "catalog" ? "categories_catalog" : "categories_selected");
+  categoriesSearch.value = "";
+  categoriesNew.value = "";
+  if (categoryEditorMode === "catalog") {
+    categoryTargetIds = [];
+    categoryDraftLabels = [];
+    categoriesTitle.textContent = t("categories_catalog_title");
+    renderCategoryEditor();
+    modalCategories.classList.add("show");
+    setTimeout(() => categoriesSearch.focus(), 50);
+    return;
+  }
   categoryTargetIds = picked.map((tor) => tor.id);
   const first = picked[0] || { labels: [] };
   const sameLabels = picked.every((tor) => JSON.stringify(visibleLabelsOf(tor)) === JSON.stringify(visibleLabelsOf(first)));
@@ -546,6 +593,10 @@ function closeCategories() {
   modalCategories.classList.remove("show");
   categoryTargetIds = [];
   categoryDraftLabels = [];
+  categoryEditorMode = "assign";
+  categoriesQuickSection.hidden = false;
+  document.getElementById("categories-save").hidden = false;
+  categoriesSelectedLabel.textContent = t("categories_selected");
   categoriesTitle.textContent = t("categories_title");
 }
 
@@ -561,11 +612,22 @@ modalCategories.addEventListener("click", (event) => {
   const button = event.target.closest("[data-category-action]");
   if (!button) return;
   const label = button.dataset.category;
+  const action = button.dataset.categoryAction;
+  if (action === "catalog-remove") {
+    openCategoryDelete(label);
+    return;
+  }
+  if (categoryEditorMode === "catalog") {
+    addToCategoryCatalog(label);
+    renderCategoryEditor();
+    return;
+  }
   const selectedAlready = categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label));
-  if (button.dataset.categoryAction === "remove" || selectedAlready) {
+  if (action === "remove" || selectedAlready) {
     categoryDraftLabels = categoryDraftLabels.filter((item) => categoryKey(item) !== categoryKey(label));
   } else {
     categoryDraftLabels = uniqueCategories([...categoryDraftLabels, label]);
+    addToCategoryCatalog(label);
   }
   renderCategoryEditor();
 });
@@ -614,7 +676,9 @@ function categoryTorrents(label) {
 function openCategoryDelete(label) {
   const targets = categoryTorrents(label);
   if (!targets.length) {
+    removeFromCategoryCatalog(label);
     renderCategoryEditor();
+    toast(t("categories_deleted"), "success");
     return;
   }
   categoryDeleteLabel = label;
@@ -641,6 +705,7 @@ document.getElementById("category-delete-submit").addEventListener("click", asyn
       ids: [tor.id],
       labels: (tor.labels || []).filter((item) => isFocusLabel(item) || categoryKey(item) !== key),
     })));
+    removeFromCategoryCatalog(label);
     categoryDraftLabels = categoryDraftLabels.filter((item) => categoryKey(item) !== key);
     closeCategoryDelete();
     toast(t("categories_deleted"), "success");
