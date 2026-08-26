@@ -1294,7 +1294,9 @@ function renderDetailsFirstStatus(tor) {
 function fmtDate(unixSeconds) {
   if (!unixSeconds) return "—";
   const locale = currentLang === "ru" ? "ru-RU" : "en-US";
-  return new Date(unixSeconds * 1000).toLocaleString(locale);
+  return new Date(unixSeconds * 1000).toLocaleString(locale, {
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+  });
 }
 
 function renderDetailsGeneral(tor) {
