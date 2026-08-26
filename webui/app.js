@@ -123,6 +123,7 @@ let pollInFlight = false;
 let downloadDirCache = null;
 let lastStats = null;
 let lastFreeBytes = null;
+let lastTableStateKey = null;
 
 const els = {
   body: document.getElementById("torrent-body"),
@@ -316,15 +317,34 @@ function sortedFiltered() {
   return list;
 }
 
-function renderTable() {
-  const list = sortedFiltered();
-  els.empty.style.display = list.length ? "none" : "flex";
+function tableStateKey() {
+  // Include exactly the values that can change a table row or its ordering.
+  // This is much cheaper than destroying and rebuilding the DOM on every poll.
+  const rows = torrents.map((tor) => [
+    tor.id, tor.name, tor.status, tor.percentDone, tor.error, tor.errorString,
+    tor.totalSize, tor.addedDate, tor.rateDownload, tor.rateUpload, tor.eta,
+    tor.uploadRatio, tor.peersConnected,
+    (tor.labels || []).join("\u001f"),
+    (tor.trackerStats || []).map((ts) => ts.seederCount).join(","),
+  ].join("\u001e")).join("\u001d");
+  return [
+    currentLang, currentFilter, currentLabelFilter, searchTerm, sortKey, sortDir,
+    Array.from(selected).sort((a, b) => a - b).join(","), rows,
+  ].join("\u001c");
+}
 
+function renderTable() {
   // reconcile selection with still-present ids
   const presentIds = new Set(torrents.map((tor) => tor.id));
   for (const id of Array.from(selected)) if (!presentIds.has(id)) selected.delete(id);
   updateToolbarState();
 
+  const stateKey = tableStateKey();
+  if (stateKey === lastTableStateKey) return;
+  lastTableStateKey = stateKey;
+
+  const list = sortedFiltered();
+  els.empty.style.display = list.length ? "none" : "flex";
   els.body.innerHTML = list.map(rowHtml).join("");
 }
 
@@ -355,10 +375,10 @@ function rowHtml(tor) {
     </tr>`;
 }
 
-function escapeHtml(s) {
-  const d = document.createElement("div");
-  d.textContent = s;
-  return d.innerHTML;
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[char]));
 }
 
 /* ==========================================================================
@@ -781,18 +801,15 @@ const DETAIL_FIELDS = [
   "downloadedEver", "uploadedEver", "uploadRatio", "trackerStats",
   "files", "fileStats", "labels", "seedRatioLimit", "seedRatioMode",
 ];
+const DETAIL_LIVE_FIELDS = DETAIL_FIELDS.filter((field) => field !== "files" && field !== "fileStats");
 
 let currentDetailsId = null;
 let detailsTimer = null;
 let currentDetailsFileCount = 0;
 let currentDetailsLabels = [];
+let detailsRenderGeneration = 0;
 const FOCUS_LABEL_PREFIX = "__torrentstation_focus_";
 const isFocusLabel = (label) => label.startsWith(FOCUS_LABEL_PREFIX);
-
-// While a priority <select> is open/focused, skip the periodic refresh —
-// replacing the file rows out from under an open native dropdown can
-// silently drop the user's in-progress selection.
-let fileSelectFocused = false;
 
 function openDetails(id) {
   if (id == null) return;
@@ -801,12 +818,15 @@ function openDetails(id) {
   modalDetails.classList.add("show");
   fetchDetails();
   if (detailsTimer) clearInterval(detailsTimer);
-  detailsTimer = setInterval(() => { if (!fileSelectFocused) fetchDetails(); }, 3000);
+  // File lists may contain thousands of rows. Keep the header current, but
+  // do not repeatedly download and rebuild that large list in the background.
+  detailsTimer = setInterval(() => fetchDetails(false), 5000);
 }
 
 function closeDetails() {
   modalDetails.classList.remove("show");
   currentDetailsId = null;
+  detailsRenderGeneration++;
   if (detailsTimer) clearInterval(detailsTimer);
   detailsTimer = null;
 }
@@ -817,17 +837,19 @@ document.addEventListener("pointerdown", (event) => {
   if (modalDetails.classList.contains("show") && !modalDetails.contains(event.target)) closeDetails();
 });
 
-async function fetchDetails() {
+async function fetchDetails(includeFiles = true) {
   if (currentDetailsId == null) return;
+  const requestedId = currentDetailsId;
   try {
-    const data = await rpc("torrent-get", { ids: [currentDetailsId], fields: DETAIL_FIELDS });
+    const data = await rpc("torrent-get", { ids: [requestedId], fields: includeFiles ? DETAIL_FIELDS : DETAIL_LIVE_FIELDS });
+    if (currentDetailsId !== requestedId) return;
     const tor = data.torrents[0];
     if (!tor) { closeDetails(); return; }
-    currentDetailsFileCount = (tor.files || []).length;
+    if (includeFiles) currentDetailsFileCount = (tor.files || []).length;
     currentDetailsLabels = tor.labels || [];
     detailsTitle.textContent = tor.name;
     renderDetailsGeneral(tor);
-    renderDetailsFiles(tor);
+    if (includeFiles) renderDetailsFiles(tor);
   } catch (e) {
     toast(t("toast_error") + e.message, "error");
   }
@@ -878,13 +900,25 @@ function renderDetailsGeneral(tor) {
 function renderDetailsFiles(tor) {
   const files = tor.files || [];
   const stats = tor.fileStats || [];
-  fileRowsEl.innerHTML = files.map((f, i) => {
+  const generation = ++detailsRenderGeneration;
+  let index = 0;
+  fileRowsEl.textContent = "";
+
+  function appendBatch() {
+    if (generation !== detailsRenderGeneration) return;
+    const fragment = document.createDocumentFragment();
+    const end = Math.min(index + 100, files.length);
+    for (; index < end; index++) {
+      const f = files[index];
+      const i = index;
     const st = stats[i] || { bytesCompleted: 0, wanted: true, priority: 0 };
     const pct = f.length ? Math.round((st.bytesCompleted / f.length) * 100) : 0;
     const isFirst = currentDetailsLabels.includes(FOCUS_LABEL_PREFIX + i);
     const value = isFirst ? "first" : !st.wanted ? "skip" : st.priority === 1 ? "high" : st.priority === -1 ? "low" : "normal";
-    return `
-      <div class="file-row${!st.wanted ? " skipped" : ""}" data-idx="${i}">
+      const row = document.createElement("div");
+      row.className = "file-row" + (!st.wanted ? " skipped" : "");
+      row.dataset.idx = i;
+      row.innerHTML = `
         <div class="f-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
         <div class="f-size">${fmtBytes(f.length)}</div>
         <div class="f-progress">
@@ -897,8 +931,13 @@ function renderDetailsFiles(tor) {
           <option value="high"${value === "high" ? " selected" : ""}>${escapeHtml(t("priority_high"))}</option>
           <option value="first"${value === "first" ? " selected" : ""}>${escapeHtml(t("priority_first"))}</option>
         </select>
-      </div>`;
-  }).join("");
+      `;
+      fragment.appendChild(row);
+    }
+    fileRowsEl.appendChild(fragment);
+    if (index < files.length) requestAnimationFrame(appendBatch);
+  }
+  appendBatch();
 }
 
 async function setFilePriority(idx, value) {
@@ -951,9 +990,6 @@ fileRowsEl.addEventListener("change", (e) => {
   if (!sel) return;
   setFilePriority(Number(sel.dataset.idx), sel.value);
 });
-
-fileRowsEl.addEventListener("focusin", (e) => { if (e.target.tagName === "SELECT") fileSelectFocused = true; });
-fileRowsEl.addEventListener("focusout", (e) => { if (e.target.tagName === "SELECT") fileSelectFocused = false; });
 
 /* ==========================================================================
    TOAST
