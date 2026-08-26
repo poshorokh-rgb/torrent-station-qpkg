@@ -2,8 +2,8 @@
 """Restore files paused by Torrent Station's Focus-download mode.
 
 The marker lives in a Transmission label, so this worker survives browser
-closures and NAS restarts.  It removes the marker and resumes the remaining
-files once the focused file reaches 100%.
+closures and NAS restarts. It removes the marker only after it has verified
+that the remaining files were resumed once the focused file reaches 100%.
 """
 import base64
 import json
@@ -59,12 +59,31 @@ def tick(port, credential_file):
             continue
         if stats[index].get("bytesCompleted", 0) < files[index].get("length", 0):
             continue
-        restored_labels = [label for label in labels if not MARKER.match(label)]
         all_files = list(range(len(files)))
+
+        # Transmission 4 can acknowledge a combined torrent-set request while
+        # applying only part of it. Keep the marker until every recovery step
+        # has independently succeeded, so a later monitor pass can retry.
+        rpc(port, user, password, "torrent-set", {
+            "ids": [torrent["id"]], "files-wanted": all_files,
+        })
+        rpc(port, user, password, "torrent-set", {
+            "ids": [torrent["id"]], "priority-normal": all_files,
+        })
+
+        verified = rpc(port, user, password, "torrent-get", {
+            "ids": [torrent["id"]], "fields": ["fileStats"],
+        })
+        restored = verified.get("arguments", {}).get("torrents", [])
+        restored_stats = restored[0].get("fileStats", []) if restored else []
+        if len(restored_stats) < len(files) or not all(stat.get("wanted") for stat in restored_stats[:len(files)]):
+            raise RuntimeError("Focus recovery did not restore all files for torrent %s" % torrent["id"])
+
+        restored_labels = [label for label in labels if not MARKER.match(label)]
         rpc(port, user, password, "torrent-set", {
             "ids": [torrent["id"]], "labels": restored_labels,
-            "files-wanted": all_files, "priority-normal": all_files,
         })
+        sys.stderr.write("[TorrentStation] Focus recovery completed for torrent %s\\n" % torrent["id"])
 
 
 def main():
@@ -73,8 +92,10 @@ def main():
     while True:
         try:
             tick(port, credential_file)
-        except Exception:
-            pass
+        except Exception as error:
+            # The worker must stay alive, but failures must be visible in the
+            # normal Torrent Station log instead of leaving files in Skip.
+            sys.stderr.write("[TorrentStation] Focus recovery error: %s\\n" % error)
         time.sleep(5)
 
 
