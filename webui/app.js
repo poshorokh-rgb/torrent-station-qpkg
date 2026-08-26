@@ -127,6 +127,7 @@ let lastTableStateKey = null;
 
 const els = {
   body: document.getElementById("torrent-body"),
+  head: document.getElementById("torrent-head"),
   empty: document.getElementById("empty-state"),
   statDown: document.getElementById("stat-down"),
   statUp: document.getElementById("stat-up"),
@@ -144,8 +145,128 @@ const FIELDS = [
   "id", "name", "status", "percentDone", "percentComplete", "rateDownload", "rateUpload",
   "eta", "uploadRatio", "peersConnected", "peersSendingToUs", "peersGettingFromUs",
   "totalSize", "sizeWhenDone", "isFinished", "error", "errorString", "downloadDir",
-  "addedDate", "trackerStats", "labels",
+  "addedDate", "doneDate", "downloadedEver", "uploadedEver", "leftUntilDone", "fileCount",
+  "isPrivate", "trackerStats", "labels",
 ];
+
+const TABLE_COLUMNS_KEY = "tq_table_columns_v1";
+const TABLE_COLUMNS = [
+  { id: "name", label: "col_name", sort: "name", fixed: true, width: "36%", cell: (tor) => {
+    const error = tor.error && tor.error !== 0;
+    const title = error ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
+    const labels = (tor.labels || []).filter((label) => !isFocusLabel(label));
+    return `<td class="name-cell"${title}><div class="fname">${escapeHtml(tor.name)}</div>${labels.map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")}</td>`;
+  } },
+  { id: "size", label: "col_size", sort: "size", num: true, cell: (tor) => `<td class="num">${fmtBytes(tor.totalSize)}</td>` },
+  { id: "progress", label: "col_progress", sort: "progress", cell: (tor) => {
+    const pct = Math.round(torrentProgress(tor) * 100);
+    const color = tor.status === 6 ? "var(--progress-green)" : tor.status === 0 ? "var(--progress-faint)" : "var(--progress-amber)";
+    return `<td><div class="progress-track"><div class="progress-fill" style="width:${pct}%; --fill-c:${color}"></div><div class="progress-pct">${pct}%</div></div></td>`;
+  } },
+  { id: "status", label: "col_status", sort: "status", cell: (tor) => {
+    const meta = statusMeta(tor.status);
+    const error = tor.error && tor.error !== 0;
+    return `<td><span class="status-pill"><span class="dot ${error ? "error" : meta.dot}"></span>${error ? t("st_error") : meta.label}</span></td>`;
+  } },
+  { id: "added", label: "col_added", sort: "added", num: true, cell: (tor) => `<td class="num" title="${escapeHtml(fmtDate(tor.addedDate))}">${fmtAgo(tor.addedDate)}</td>` },
+  { id: "down", label: "col_down", sort: "down", num: true, cell: (tor) => `<td class="num ${tor.rateDownload ? "rate-down" : "rate-zero"}">${tor.rateDownload ? fmtRate(tor.rateDownload) : "—"}</td>` },
+  { id: "up", label: "col_up", sort: "up", num: true, cell: (tor) => `<td class="num ${tor.rateUpload ? "rate-up" : "rate-zero"}">${tor.rateUpload ? fmtRate(tor.rateUpload) : "—"}</td>` },
+  { id: "eta", label: "col_eta", sort: "eta", num: true, cell: (tor) => `<td class="num">${tor.status === 4 ? fmtEta(tor.eta) : "—"}</td>` },
+  { id: "ratio", label: "col_ratio", sort: "ratio", num: true, cell: (tor) => `<td class="num">${fmtRatio(tor.uploadRatio)}</td>` },
+  { id: "peers", label: "col_peers", sort: "peers", num: true, cell: (tor) => `<td class="num">${seedsOf(tor)}/${tor.peersConnected}</td>` },
+  { id: "seeds", label: "col_seeds", sort: "seeds", num: true, cell: (tor) => `<td class="num">${seedsOf(tor)}</td>` },
+  { id: "downloaded", label: "col_downloaded", sort: "downloaded", num: true, cell: (tor) => `<td class="num">${fmtBytes(tor.downloadedEver)}</td>` },
+  { id: "uploaded", label: "col_uploaded", sort: "uploaded", num: true, cell: (tor) => `<td class="num">${fmtBytes(tor.uploadedEver)}</td>` },
+  { id: "remaining", label: "col_remaining", sort: "remaining", num: true, cell: (tor) => `<td class="num">${tor.leftUntilDone ? fmtBytes(tor.leftUntilDone) : "—"}</td>` },
+  { id: "location", label: "col_location", sort: "location", cell: (tor) => `<td class="location-cell" title="${escapeHtml(tor.downloadDir || "")}">${escapeHtml(tor.downloadDir || "—")}</td>` },
+  { id: "completed", label: "col_completed", sort: "completed", num: true, cell: (tor) => `<td class="num" title="${escapeHtml(tor.doneDate ? fmtDate(tor.doneDate) : "")}">${tor.doneDate ? fmtAgo(tor.doneDate) : "—"}</td>` },
+  { id: "files", label: "col_files", sort: "files", num: true, cell: (tor) => `<td class="num">${Number.isFinite(tor.fileCount) ? tor.fileCount : "—"}</td>` },
+  { id: "private", label: "col_private", sort: "private", cell: (tor) => `<td>${tor.isPrivate ? t("yes") : t("no")}</td>` },
+  { id: "error", label: "col_error", sort: "error", cell: (tor) => `<td class="error-cell" title="${escapeHtml(tor.errorString || "")}">${escapeHtml(tor.errorString || "—")}</td>` },
+];
+const DEFAULT_TABLE_COLUMN_IDS = ["name", "size", "progress", "status", "added", "down", "up", "eta", "ratio", "peers"];
+
+function defaultTableColumns() {
+  return { order: TABLE_COLUMNS.map((column) => column.id), visible: DEFAULT_TABLE_COLUMN_IDS };
+}
+
+function loadTableColumns() {
+  const defaults = defaultTableColumns();
+  try {
+    const saved = JSON.parse(localStorage.getItem(TABLE_COLUMNS_KEY));
+    if (!saved || !Array.isArray(saved.order) || !Array.isArray(saved.visible)) return defaults;
+    const known = new Set(TABLE_COLUMNS.map((column) => column.id));
+    const order = saved.order.filter((id) => known.has(id));
+    for (const column of TABLE_COLUMNS) if (!order.includes(column.id)) order.push(column.id);
+    const visible = saved.visible.filter((id) => known.has(id) && id !== "name");
+    return { order: ["name", ...order.filter((id) => id !== "name")], visible: ["name", ...visible] };
+  } catch (e) {
+    return defaults;
+  }
+}
+
+let tableColumns = loadTableColumns();
+
+function visibleTableColumns() {
+  const visible = new Set(tableColumns.visible);
+  return tableColumns.order
+    .map((id) => TABLE_COLUMNS.find((column) => column.id === id))
+    .filter((column) => column && (column.fixed || visible.has(column.id)));
+}
+
+function saveTableColumns() {
+  localStorage.setItem(TABLE_COLUMNS_KEY, JSON.stringify(tableColumns));
+}
+
+const columnsControl = document.querySelector(".columns-control");
+const columnsButton = document.getElementById("btn-columns");
+const columnsMenu = document.getElementById("columns-menu");
+const columnsList = document.getElementById("columns-list");
+
+function renderTableHeader() {
+  els.head.innerHTML = visibleTableColumns().map((column) => `
+    <th data-sort="${column.sort}"${column.num ? ' class="num"' : ""}${column.width ? ` style="width:${column.width}"` : ""}>
+      <span>${escapeHtml(t(column.label))}</span> <span class="arrow"></span>
+    </th>`).join("");
+  markSortIndicator();
+}
+
+function renderColumnsMenu() {
+  const visible = new Set(tableColumns.visible);
+  columnsList.innerHTML = tableColumns.order.map((id, index) => {
+    const column = TABLE_COLUMNS.find((item) => item.id === id);
+    if (!column) return "";
+    const checked = column.fixed || visible.has(column.id);
+    return `<div class="column-option${checked ? "" : " is-hidden"}">
+      <label><input type="checkbox" data-column-toggle="${column.id}"${checked ? " checked" : ""}${column.fixed ? " disabled" : ""}><span>${escapeHtml(t(column.label))}</span></label>
+      <span class="column-move">
+        <button type="button" data-column-move="up" data-column-id="${column.id}" title="↑"${column.fixed || index <= 1 ? " disabled" : ""}>↑</button>
+        <button type="button" data-column-move="down" data-column-id="${column.id}" title="↓"${column.fixed || index === tableColumns.order.length - 1 ? " disabled" : ""}>↓</button>
+      </span>
+    </div>`;
+  }).join("");
+}
+
+function applyTableColumns() {
+  saveTableColumns();
+  lastTableStateKey = null;
+  renderTableHeader();
+  renderColumnsMenu();
+  renderTable();
+}
+
+function moveTableColumn(id, direction) {
+  const index = tableColumns.order.indexOf(id);
+  const target = index + direction;
+  if (index <= 0 || target <= 0 || target >= tableColumns.order.length) return;
+  [tableColumns.order[index], tableColumns.order[target]] = [tableColumns.order[target], tableColumns.order[index]];
+  applyTableColumns();
+}
+
+function closeColumnsMenu() {
+  columnsMenu.hidden = true;
+  columnsButton.setAttribute("aria-expanded", "false");
+}
 
 // percentDone is based on the files currently marked Wanted. In Focus mode
 // that can be a single file, so use percentComplete for the progress of the
@@ -315,6 +436,15 @@ function sortedFiltered() {
     eta: (tor) => (tor.eta < 0 ? Infinity : tor.eta),
     ratio: (tor) => tor.uploadRatio,
     peers: (tor) => tor.peersConnected,
+    seeds: seedsOf,
+    downloaded: (tor) => tor.downloadedEver,
+    uploaded: (tor) => tor.uploadedEver,
+    remaining: (tor) => tor.leftUntilDone,
+    location: (tor) => tor.downloadDir || "",
+    completed: (tor) => tor.doneDate || 0,
+    files: (tor) => tor.fileCount || 0,
+    private: (tor) => tor.isPrivate ? 1 : 0,
+    error: (tor) => tor.error || 0,
   }[sortKey];
   list.sort((a, b) => {
     const av = keyFn(a), bv = keyFn(b);
@@ -330,13 +460,15 @@ function tableStateKey() {
   // This is much cheaper than destroying and rebuilding the DOM on every poll.
   const rows = torrents.map((tor) => [
     tor.id, tor.name, tor.status, torrentProgress(tor), tor.error, tor.errorString,
-    tor.totalSize, tor.addedDate, tor.rateDownload, tor.rateUpload, tor.eta,
-    tor.uploadRatio, tor.peersConnected,
+    tor.totalSize, tor.addedDate, tor.doneDate, tor.rateDownload, tor.rateUpload, tor.eta,
+    tor.uploadRatio, tor.peersConnected, tor.downloadedEver, tor.uploadedEver, tor.leftUntilDone,
+    tor.downloadDir, tor.fileCount, tor.isPrivate,
     (tor.labels || []).join("\u001f"),
     (tor.trackerStats || []).map((ts) => ts.seederCount).join(","),
   ].join("\u001e")).join("\u001d");
   return [
     currentLang, currentFilter, currentLabelFilter, searchTerm, sortKey, sortDir,
+    tableColumns.order.join(","), tableColumns.visible.join(","),
     Array.from(selected).sort((a, b) => a - b).join(","), rows,
   ].join("\u001c");
 }
@@ -357,30 +489,8 @@ function renderTable() {
 }
 
 function rowHtml(tor) {
-  const meta = statusMeta(tor.status);
-  const isError = tor.error && tor.error !== 0;
-  const pct = Math.round(torrentProgress(tor) * 100);
-  const fillColor = tor.status === 6 ? "var(--progress-green)" : tor.status === 0 ? "var(--progress-faint)" : "var(--progress-amber)";
   const isSel = selected.has(tor.id) ? "selected" : "";
-  const errBadge = isError ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
-  return `
-    <tr class="${isSel}" data-id="${tor.id}">
-      <td class="name-cell"${errBadge}><div class="fname">${escapeHtml(tor.name)}</div>${(tor.labels || []).filter((label) => !isFocusLabel(label)).map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")}</td>
-      <td class="num">${fmtBytes(tor.totalSize)}</td>
-      <td>
-        <div class="progress-track">
-          <div class="progress-fill" style="width:${pct}%; --fill-c:${fillColor}"></div>
-          <div class="progress-pct">${pct}%</div>
-        </div>
-      </td>
-      <td><span class="status-pill"><span class="dot ${isError ? "error" : meta.dot}"></span>${isError ? t("st_error") : meta.label}</span></td>
-      <td class="num" title="${escapeHtml(fmtDate(tor.addedDate))}">${fmtAgo(tor.addedDate)}</td>
-      <td class="num ${tor.rateDownload ? "rate-down" : "rate-zero"}">${tor.rateDownload ? fmtRate(tor.rateDownload) : "—"}</td>
-      <td class="num ${tor.rateUpload ? "rate-up" : "rate-zero"}">${tor.rateUpload ? fmtRate(tor.rateUpload) : "—"}</td>
-      <td class="num">${tor.status === 4 ? fmtEta(tor.eta) : "—"}</td>
-      <td class="num">${fmtRatio(tor.uploadRatio)}</td>
-      <td class="num">${seedsOf(tor)}/${tor.peersConnected}</td>
-    </tr>`;
+  return `<tr class="${isSel}" data-id="${tor.id}">${visibleTableColumns().map((column) => column.cell(tor)).join("")}</tr>`;
 }
 
 function escapeHtml(value) {
@@ -778,16 +888,48 @@ function markSortIndicator() {
     h.querySelector(".arrow").textContent = active ? (sortDir === 1 ? "↑" : "↓") : "";
   });
 }
-markSortIndicator();
 
-document.querySelectorAll("th[data-sort]").forEach((th) => {
-  th.addEventListener("click", () => {
-    const key = th.dataset.sort;
-    if (sortKey === key) sortDir *= -1;
-    else { sortKey = key; sortDir = 1; }
-    markSortIndicator();
-    renderTable();
-  });
+renderTableHeader();
+renderColumnsMenu();
+
+els.head.addEventListener("click", (event) => {
+  const header = event.target.closest("th[data-sort]");
+  if (!header) return;
+  const key = header.dataset.sort;
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = 1; }
+  markSortIndicator();
+  renderTable();
+});
+
+columnsButton.addEventListener("click", () => {
+  const willOpen = columnsMenu.hidden;
+  columnsMenu.hidden = !willOpen;
+  columnsButton.setAttribute("aria-expanded", String(willOpen));
+  if (willOpen) renderColumnsMenu();
+});
+columnsList.addEventListener("change", (event) => {
+  const input = event.target.closest("input[data-column-toggle]");
+  if (!input) return;
+  const id = input.dataset.columnToggle;
+  tableColumns.visible = tableColumns.visible.filter((columnId) => columnId !== id);
+  if (input.checked) tableColumns.visible.push(id);
+  applyTableColumns();
+});
+columnsList.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-column-move]");
+  if (!button) return;
+  moveTableColumn(button.dataset.columnId, button.dataset.columnMove === "up" ? -1 : 1);
+});
+document.getElementById("columns-reset").addEventListener("click", () => {
+  tableColumns = defaultTableColumns();
+  applyTableColumns();
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!columnsMenu.hidden && !columnsControl.contains(event.target)) closeColumnsMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !columnsMenu.hidden) closeColumnsMenu();
 });
 
 document.getElementById("sidebar").addEventListener("click", (e) => {

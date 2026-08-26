@@ -276,6 +276,32 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .tbtn.icon-only { width: 34px; padding: 0; justify-content: center; }
 .tbtn.icon-only svg { width: 16px; height: 16px; }
 
+.columns-control { position: relative; }
+.columns-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 80;
+  width: 284px; max-height: min(540px, calc(100vh - 88px)); overflow-y: auto;
+  padding: 8px; background: var(--bg-panel); border: 1px solid var(--line-bright);
+  border-radius: var(--radius); box-shadow: 0 22px 55px -14px rgba(0, 0, 0, 0.72);
+}
+.columns-menu[hidden] { display: none; }
+.columns-menu-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 5px 5px; color: var(--text-hi); font-family: var(--font-display); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.columns-menu-head button { padding: 4px 6px; border: 0; border-radius: var(--radius); background: transparent; color: var(--accent); font: inherit; font-size: 10px; cursor: pointer; }
+.columns-menu-head button:hover { background: var(--accent-glow); }
+.columns-menu-hint { padding: 0 5px 9px; color: var(--text-faint); font-size: 10.5px; border-bottom: 1px solid var(--line); }
+.columns-list { padding-top: 5px; }
+.column-option { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 34px; padding: 2px 3px 2px 6px; border-radius: var(--radius); }
+.column-option:hover { background: var(--bg-hover); }
+.column-option label { display: flex; align-items: center; min-width: 0; gap: 8px; color: var(--text-mid); font-size: 11.5px; cursor: pointer; }
+.column-option label span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.column-option input { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin: 0; flex: 0 0 auto; border: 1px solid var(--line-bright); border-radius: 3px; background: var(--bg-void); cursor: pointer; }
+.column-option input:checked { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--bg-panel); }
+.column-option input:disabled { opacity: .55; cursor: default; }
+.column-option.is-hidden label { color: var(--text-faint); }
+.column-move { display: flex; gap: 2px; }
+.column-move button { width: 24px; height: 24px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text-dim); cursor: pointer; font-size: 14px; line-height: 1; }
+.column-move button:hover:not(:disabled) { border-color: var(--line-bright); background: var(--bg-raised); color: var(--text-hi); }
+.column-move button:disabled { opacity: .25; cursor: default; }
+
 /* ---- Body: sidebar + table ---- */
 .body-row { flex: 1; display: flex; min-height: 0; }
 
@@ -406,6 +432,8 @@ td.name-cell .fname {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 12.5px;
 }
+.location-cell, .error-cell { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.error-cell { color: var(--red); }
 
 .progress-track {
   position: relative;
@@ -872,8 +900,6 @@ td.name-cell .fname {
   :root { --sidebar-w: 184px; }
   .topbar { gap: 10px; padding: 0 12px; }
   .search-box { width: 180px; }
-  table.torrents th:nth-child(5), table.torrents td:nth-child(5),
-  table.torrents th:nth-child(9), table.torrents td:nth-child(9) { display: none; }
 }
 
 @media (max-width: 760px) {
@@ -889,6 +915,7 @@ td.name-cell .fname {
   .topbar-spacer { display: none; }
   .search-box { order: 4; width: 100%; }
   .lang-select { order: 3; margin-left: auto; }
+  .columns-control { order: 3; }
   #theme-toggle, #btn-history, #btn-settings { order: 3; }
 
   .body-row { flex-direction: column; }
@@ -907,8 +934,6 @@ td.name-cell .fname {
   .table-wrap { width: 100%; }
   table.torrents { min-width: 690px; }
   table.torrents th, table.torrents td { padding: 9px 10px; }
-  table.torrents th:nth-child(6), table.torrents td:nth-child(6),
-  table.torrents th:nth-child(7), table.torrents td:nth-child(7) { display: none; }
 
   .statusbar { gap: 12px; padding: 0 12px; }
   .statusbar .sep:nth-of-type(2), .statusbar-spacer, #stat-version { display: none; }

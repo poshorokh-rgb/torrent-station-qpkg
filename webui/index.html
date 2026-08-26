@@ -16,7 +16,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="styles.css?v=28">
+<link rel="stylesheet" href="styles.css?v=29">
 </head>
 <body>
 <div class="grain"></div>
@@ -56,6 +56,19 @@
       <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <input type="text" id="search" data-i18n-placeholder="search_ph" placeholder="Поиск по имени…">
     </div>
+    <div class="columns-control">
+      <button type="button" class="tbtn icon-only" id="btn-columns" data-i18n-title="columns_title" title="Колонки" aria-expanded="false" aria-controls="columns-menu">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="6" r="1.5" fill="currentColor"/><circle cx="16" cy="12" r="1.5" fill="currentColor"/><circle cx="11" cy="18" r="1.5" fill="currentColor"/></svg>
+      </button>
+      <section class="columns-menu" id="columns-menu" hidden aria-label="Колонки">
+        <div class="columns-menu-head">
+          <span data-i18n="columns_title">Колонки</span>
+          <button type="button" id="columns-reset" data-i18n="columns_reset">Сбросить</button>
+        </div>
+        <div class="columns-menu-hint" data-i18n="columns_hint">Отметьте нужные и измените порядок</div>
+        <div class="columns-list" id="columns-list"></div>
+      </section>
+    </div>
     <select class="lang-select" id="lang-select"></select>
     <button type="button" class="tbtn icon-only" id="theme-toggle" data-i18n-title="theme_toggle" title="Тема">
       <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none"><path d="M20 14.5A8.5 8.5 0 0110 4a8.5 8.5 0 108.5 8.5c0 .68-.07 1.34-.2 2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
@@ -91,18 +104,7 @@
     <main class="table-wrap" id="table-wrap" tabindex="-1">
       <table class="torrents" aria-label="Torrent list">
         <thead>
-          <tr>
-            <th data-sort="name" style="width:36%"><span data-i18n="col_name">Имя</span> <span class="arrow"></span></th>
-            <th data-sort="size" class="num"><span data-i18n="col_size">Размер</span> <span class="arrow"></span></th>
-            <th data-sort="progress"><span data-i18n="col_progress">Прогресс</span> <span class="arrow"></span></th>
-            <th data-sort="status"><span data-i18n="col_status">Статус</span> <span class="arrow"></span></th>
-            <th data-sort="added" class="num"><span data-i18n="col_added">Добавлен</span> <span class="arrow"></span></th>
-            <th data-sort="down" class="num"><span data-i18n="col_down">Загрузка</span> <span class="arrow"></span></th>
-            <th data-sort="up" class="num"><span data-i18n="col_up">Отдача</span> <span class="arrow"></span></th>
-            <th data-sort="eta" class="num"><span data-i18n="col_eta">Осталось</span> <span class="arrow"></span></th>
-            <th data-sort="ratio" class="num"><span data-i18n="col_ratio">Рейтинг</span> <span class="arrow"></span></th>
-            <th data-sort="peers" class="num"><span data-i18n="col_peers">Сиды/Пиры</span> <span class="arrow"></span></th>
-          </tr>
+          <tr id="torrent-head"></tr>
         </thead>
         <tbody id="torrent-body"></tbody>
       </table>
@@ -413,8 +415,8 @@
 <div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
 <script src="theme.js?v=23"></script>
-<script src="i18n.js?v=32"></script>
+<script src="i18n.js?v=33"></script>
 <script src="version.js?v=1"></script>
-<script src="app.js?v=37"></script>
+<script src="app.js?v=38"></script>
 </body>
 </html>
