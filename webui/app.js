@@ -850,7 +850,7 @@ function openDetails(id) {
   if (detailsTimer) clearInterval(detailsTimer);
   // File lists may contain thousands of rows. Keep the header current, but
   // do not repeatedly download and rebuild that large list in the background.
-  detailsTimer = setInterval(() => fetchDetails(false), 5000);
+  detailsTimer = setInterval(() => fetchDetails(false), 2000);
 }
 
 function closeDetails() {
