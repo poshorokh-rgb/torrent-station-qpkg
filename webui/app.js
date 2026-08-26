@@ -606,7 +606,7 @@ modalCategories.addEventListener("click", (e) => { if (e.target === modalCategor
 modalCategories.addEventListener("click", (event) => {
   const deleteButton = event.target.closest("[data-category-delete]");
   if (deleteButton) {
-    openCategoryDelete(deleteButton.dataset.category);
+    openCategoryDelete(deleteButton.dataset.categoryDelete);
     return;
   }
   const button = event.target.closest("[data-category-action]");
