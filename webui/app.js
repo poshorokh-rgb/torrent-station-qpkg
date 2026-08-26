@@ -1019,13 +1019,33 @@ function updateDetailsFiles(tor) {
 async function setFilePriority(idx, value) {
   if (currentDetailsId == null) return;
   if (value === "first") {
+    const torrentId = currentDetailsId;
     const otherFiles = Array.from({ length: currentDetailsFileCount }, (_, i) => i).filter((i) => i !== idx);
     try {
+      // Transmission 4 can acknowledge a combined torrent-set request while
+      // applying only some fields. Send each Focus step independently and do
+      // not leave a recovery marker behind until Skip is verified.
       await rpc("torrent-set", {
-        ids: [currentDetailsId],
+        ids: [torrentId],
         "files-wanted": [idx],
+      });
+      await rpc("torrent-set", {
+        ids: [torrentId],
         "priority-high": [idx],
+      });
+      await rpc("torrent-set", {
+        ids: [torrentId],
         "files-unwanted": otherFiles,
+      });
+
+      const checked = await rpc("torrent-get", { ids: [torrentId], fields: ["fileStats"] });
+      const stats = checked.torrents[0]?.fileStats || [];
+      const targetReady = stats[idx]?.wanted && stats[idx]?.priority === 1;
+      const othersSkipped = otherFiles.every((fileIndex) => stats[fileIndex] && !stats[fileIndex].wanted);
+      if (!targetReady || !othersSkipped) throw new Error(t("priority_first_verify_failed"));
+
+      await rpc("torrent-set", {
+        ids: [torrentId],
         labels: [...currentDetailsLabels.filter((label) => !isFocusLabel(label)), FOCUS_LABEL_PREFIX + idx],
       });
       toast(t("priority_first_active"), "success");

@@ -101,6 +101,7 @@ const I18N = {
     priority_high: "Высокий",
     priority_first: "First — скачать первым",
     priority_first_active: "Фокус включён: остальные файлы возобновятся автоматически после завершения этого",
+    priority_first_verify_failed: "Не удалось перевести все остальные файлы в Skip. Focus не включён.",
 
     theme_toggle: "Тема",
     settings_title: "Настройки",
@@ -270,6 +271,7 @@ const I18N = {
     priority_high: "High",
     priority_first: "First — download first",
     priority_first_active: "Focus is active: other files will resume automatically when this file finishes",
+    priority_first_verify_failed: "Could not set every other file to Skip. Focus was not enabled.",
 
     theme_toggle: "Theme",
     settings_title: "Settings",
