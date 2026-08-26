@@ -727,6 +727,17 @@ td.name-cell .fname {
 .details-panel .modal-head { flex-shrink: 0; }
 .details-panel .modal-tabs { flex-shrink: 0; }
 .modal-body-lg { padding: 20px; flex: 1; min-height: 0; overflow-y: auto; }
+.details-head-actions { display: flex; align-items: center; gap: 4px; }
+.details-refresh {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 8px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-raised);
+  color: var(--text-mid); font-size: 10.5px; font-weight: 700; cursor: pointer;
+}
+.details-refresh:hover { color: var(--text-hi); border-color: var(--line-bright); background: var(--bg-hover); }
+.details-refresh:disabled { cursor: wait; opacity: 0.7; }
+.details-refresh svg { width: 13px; height: 13px; }
+.details-refresh.is-refreshing svg { animation: details-refresh-spin 0.75s linear infinite; }
+@keyframes details-refresh-spin { to { transform: rotate(360deg); } }
 
 .detail-grid {
   display: grid;
@@ -777,6 +788,20 @@ td.name-cell .fname {
 .history-row .h-time { flex-shrink: 0; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
 .file-rows { display: flex; flex-direction: column; gap: 6px; }
+.details-first-status {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 10px; padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--progress-amber) 55%, var(--line));
+  border-radius: var(--radius); background: color-mix(in srgb, var(--progress-amber) 9%, var(--bg-void));
+}
+.details-first-status[hidden] { display: none; }
+.details-first-mark {
+  width: 8px; height: 8px; margin-top: 4px; flex: 0 0 auto; border-radius: 50%;
+  background: var(--progress-amber); box-shadow: 0 0 10px color-mix(in srgb, var(--progress-amber) 72%, transparent);
+}
+.details-first-copy { min-width: 0; }
+.details-first-title { display: block; color: var(--text-hi); font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.details-first-note { display: block; margin-top: 3px; color: var(--text-mid); font-size: 10.5px; line-height: 1.35; }
 .file-row {
   display: grid;
   grid-template-columns: 1fr 90px 120px 120px;
@@ -797,6 +822,7 @@ td.name-cell .fname {
 }
 .file-row select:focus { outline: none; border-color: var(--accent); }
 .file-row.skipped { opacity: 0.5; }
+.file-row.is-first { border-color: color-mix(in srgb, var(--progress-amber) 58%, var(--line)); box-shadow: inset 3px 0 0 var(--progress-amber); }
 
 /* ---- Context menu ---- */
 .ctx-menu {
@@ -887,6 +913,8 @@ td.name-cell .fname {
   .statusbar { gap: 12px; padding: 0 12px; }
   .statusbar .sep:nth-of-type(2), .statusbar-spacer, #stat-version { display: none; }
   .details-panel.show { height: min(68vh, 520px); }
+  .details-refresh span { display: none; }
+  .details-refresh { width: 28px; justify-content: center; padding: 0; }
   #modal-settings .modal { max-height: calc(100dvh - 16px); }
   .file-row { grid-template-columns: 1fr 96px; gap: 7px 10px; }
   .file-row .f-progress { grid-column: 1 / -1; }

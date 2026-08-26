@@ -16,7 +16,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="styles.css?v=27">
+<link rel="stylesheet" href="styles.css?v=28">
 </head>
 <body>
 <div class="grain"></div>
@@ -249,7 +249,10 @@
 <section class="details-panel" id="modal-details" role="dialog" aria-modal="true" aria-labelledby="details-title">
   <div class="modal-head">
     <h2 id="details-title" data-i18n="details_title">Детали торрента</h2>
-    <button type="button" class="modal-close" id="details-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <div class="details-head-actions">
+      <button type="button" class="details-refresh" id="details-refresh" data-i18n-title="details_refresh_title" title="Обновить список файлов"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 11a8 8 0 1 0 2 5.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4v7h-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span data-i18n="details_refresh">Обновить</span></button>
+      <button type="button" class="modal-close" id="details-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
   </div>
   <div class="modal-tabs">
     <div class="modal-tab" data-dtab="general" data-i18n="details_tab_general">Обзор</div>
@@ -258,6 +261,7 @@
   <div class="modal-body modal-body-lg">
     <div class="modal-pane" data-dpane="general" id="details-general"></div>
     <div class="modal-pane active" data-dpane="files" id="details-files">
+      <div class="details-first-status" id="details-first-status" hidden></div>
       <div class="file-rows" id="file-rows"></div>
     </div>
   </div>
@@ -409,8 +413,8 @@
 <div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
 <script src="theme.js?v=23"></script>
-<script src="i18n.js?v=31"></script>
+<script src="i18n.js?v=32"></script>
 <script src="version.js?v=1"></script>
-<script src="app.js?v=36"></script>
+<script src="app.js?v=37"></script>
 </body>
 </html>

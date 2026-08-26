@@ -1051,6 +1051,8 @@ const modalDetails = document.getElementById("modal-details");
 const detailsTitle = document.getElementById("details-title");
 const detailsGeneralEl = document.getElementById("details-general");
 const fileRowsEl = document.getElementById("file-rows");
+const detailsFirstStatusEl = document.getElementById("details-first-status");
+const detailsRefreshButton = document.getElementById("details-refresh");
 
 const DETAIL_FIELDS = [
   "id", "name", "status", "totalSize", "downloadDir", "hashString",
@@ -1113,9 +1115,36 @@ async function fetchDetails(includeFiles = true) {
     renderDetailsGeneral(tor);
     if (includeFiles) renderDetailsFiles(tor);
     else updateDetailsFiles(tor);
+    renderDetailsFirstStatus(tor);
   } catch (e) {
     toast(t("toast_error") + e.message, "error");
   }
+}
+
+function focusedFileIndex() {
+  const label = currentDetailsLabels.find(isFocusLabel);
+  if (!label) return null;
+  const index = Number(label.slice(FOCUS_LABEL_PREFIX.length));
+  return Number.isInteger(index) && index >= 0 ? index : null;
+}
+
+function renderDetailsFirstStatus(tor) {
+  const index = focusedFileIndex();
+  const file = index == null ? null : currentDetailsFiles[index];
+  if (!file) {
+    detailsFirstStatusEl.hidden = true;
+    detailsFirstStatusEl.textContent = "";
+    return;
+  }
+  const stat = (tor.fileStats || [])[index] || { bytesCompleted: 0 };
+  const pct = file.length ? Math.round((stat.bytesCompleted / file.length) * 100) : 0;
+  detailsFirstStatusEl.hidden = false;
+  detailsFirstStatusEl.innerHTML = `
+    <span class="details-first-mark" aria-hidden="true"></span>
+    <span class="details-first-copy">
+      <strong class="details-first-title" title="${escapeHtml(file.name)}">${escapeHtml(tf("details_first_file", file.name, pct))}</strong>
+      <span class="details-first-note">${escapeHtml(t("details_first_note"))}</span>
+    </span>`;
 }
 
 function fmtDate(unixSeconds) {
@@ -1194,7 +1223,7 @@ function renderDetailsFiles(tor) {
     const pct = f.length ? Math.round((st.bytesCompleted / f.length) * 100) : 0;
     const value = filePriorityValue(i, st);
       const row = document.createElement("div");
-      row.className = "file-row" + (!st.wanted ? " skipped" : "");
+      row.className = "file-row" + (!st.wanted ? " skipped" : "") + (focusedFileIndex() === i ? " is-first" : "");
       row.dataset.idx = i;
       row.innerHTML = `
         <div class="f-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
@@ -1241,6 +1270,7 @@ function updateDetailsFiles(tor) {
     if (fill) fill.style.width = pct + "%";
     if (label) label.textContent = pct + "%";
     row.classList.toggle("skipped", !stat.wanted);
+    row.classList.toggle("is-first", focusedFileIndex() === index);
 
     const select = row.querySelector("select[data-idx]");
     const value = filePriorityValue(index, stat);
@@ -1312,6 +1342,14 @@ modalDetails.querySelectorAll(".modal-tab").forEach((tabEl) => {
 });
 
 document.getElementById("details-close").addEventListener("click", closeDetails);
+detailsRefreshButton.addEventListener("click", async () => {
+  if (currentDetailsId == null) return;
+  detailsRefreshButton.disabled = true;
+  detailsRefreshButton.classList.add("is-refreshing");
+  await fetchDetails(true);
+  detailsRefreshButton.classList.remove("is-refreshing");
+  detailsRefreshButton.disabled = false;
+});
 
 fileRowsEl.addEventListener("change", (e) => {
   const sel = e.target.closest("select[data-idx]");
