@@ -141,11 +141,19 @@ const els = {
    POLLING
    ========================================================================== */
 const FIELDS = [
-  "id", "name", "status", "percentDone", "rateDownload", "rateUpload",
+  "id", "name", "status", "percentDone", "percentComplete", "rateDownload", "rateUpload",
   "eta", "uploadRatio", "peersConnected", "peersSendingToUs", "peersGettingFromUs",
   "totalSize", "sizeWhenDone", "isFinished", "error", "errorString", "downloadDir",
   "addedDate", "trackerStats", "labels",
 ];
+
+// percentDone is based on the files currently marked Wanted. In Focus mode
+// that can be a single file, so use percentComplete for the progress of the
+// whole torrent. The fallback keeps the UI usable with older daemons.
+function torrentProgress(tor) {
+  const progress = Number.isFinite(tor.percentComplete) ? tor.percentComplete : tor.percentDone;
+  return Math.max(0, Math.min(1, progress || 0));
+}
 
 async function poll() {
   if (pollInFlight) return;
@@ -238,7 +246,7 @@ function renderSidebarCounts() {
     if (tor.status === 4 || tor.status === 6) c.active++;
     if (tor.status === 0) c.paused++;
     if (tor.status === 1 || tor.status === 2) c.checking++;
-    if (tor.percentDone >= 1) c.completed++;
+    if (torrentProgress(tor) >= 1) c.completed++;
     if (tor.error && tor.error !== 0) c.error++;
   }
   for (const k in c) {
@@ -284,7 +292,7 @@ function matchesFilter(tor) {
     case "active": return tor.status === 4 || tor.status === 6;
     case "paused": return tor.status === 0;
     case "checking": return tor.status === 1 || tor.status === 2;
-    case "completed": return tor.percentDone >= 1;
+    case "completed": return torrentProgress(tor) >= 1;
     case "error": return tor.error && tor.error !== 0;
     default: return true;
   }
@@ -299,7 +307,7 @@ function sortedFiltered() {
   const keyFn = {
     name: (tor) => tor.name.toLowerCase(),
     size: (tor) => tor.totalSize,
-    progress: (tor) => tor.percentDone,
+    progress: torrentProgress,
     status: (tor) => tor.status,
     added: (tor) => tor.addedDate,
     down: (tor) => tor.rateDownload,
@@ -321,7 +329,7 @@ function tableStateKey() {
   // Include exactly the values that can change a table row or its ordering.
   // This is much cheaper than destroying and rebuilding the DOM on every poll.
   const rows = torrents.map((tor) => [
-    tor.id, tor.name, tor.status, tor.percentDone, tor.error, tor.errorString,
+    tor.id, tor.name, tor.status, torrentProgress(tor), tor.error, tor.errorString,
     tor.totalSize, tor.addedDate, tor.rateDownload, tor.rateUpload, tor.eta,
     tor.uploadRatio, tor.peersConnected,
     (tor.labels || []).join("\u001f"),
@@ -351,7 +359,7 @@ function renderTable() {
 function rowHtml(tor) {
   const meta = statusMeta(tor.status);
   const isError = tor.error && tor.error !== 0;
-  const pct = Math.round(tor.percentDone * 100);
+  const pct = Math.round(torrentProgress(tor) * 100);
   const fillColor = tor.status === 6 ? "var(--progress-green)" : tor.status === 0 ? "var(--progress-faint)" : "var(--progress-amber)";
   const isSel = selected.has(tor.id) ? "selected" : "";
   const errBadge = isError ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
@@ -801,12 +809,16 @@ const DETAIL_FIELDS = [
   "downloadedEver", "uploadedEver", "uploadRatio", "trackerStats",
   "files", "fileStats", "labels", "seedRatioLimit", "seedRatioMode",
 ];
-const DETAIL_LIVE_FIELDS = DETAIL_FIELDS.filter((field) => field !== "files" && field !== "fileStats");
+// File names and sizes are immutable, but fileStats changes while downloading.
+// Keep requesting the latter so open Details panels remain live without
+// rebuilding a potentially very large file list.
+const DETAIL_LIVE_FIELDS = DETAIL_FIELDS.filter((field) => field !== "files");
 
 let currentDetailsId = null;
 let detailsTimer = null;
 let currentDetailsFileCount = 0;
 let currentDetailsLabels = [];
+let currentDetailsFiles = [];
 let detailsRenderGeneration = 0;
 const FOCUS_LABEL_PREFIX = "__torrentstation_focus_";
 const isFocusLabel = (label) => label.startsWith(FOCUS_LABEL_PREFIX);
@@ -850,6 +862,7 @@ async function fetchDetails(includeFiles = true) {
     detailsTitle.textContent = tor.name;
     renderDetailsGeneral(tor);
     if (includeFiles) renderDetailsFiles(tor);
+    else updateDetailsFiles(tor);
   } catch (e) {
     toast(t("toast_error") + e.message, "error");
   }
@@ -900,6 +913,7 @@ function renderDetailsGeneral(tor) {
 function renderDetailsFiles(tor) {
   const files = tor.files || [];
   const stats = tor.fileStats || [];
+  currentDetailsFiles = files;
   const generation = ++detailsRenderGeneration;
   let index = 0;
   fileRowsEl.textContent = "";
@@ -913,8 +927,7 @@ function renderDetailsFiles(tor) {
       const i = index;
     const st = stats[i] || { bytesCompleted: 0, wanted: true, priority: 0 };
     const pct = f.length ? Math.round((st.bytesCompleted / f.length) * 100) : 0;
-    const isFirst = currentDetailsLabels.includes(FOCUS_LABEL_PREFIX + i);
-    const value = isFirst ? "first" : !st.wanted ? "skip" : st.priority === 1 ? "high" : st.priority === -1 ? "low" : "normal";
+    const value = filePriorityValue(i, st);
       const row = document.createElement("div");
       row.className = "file-row" + (!st.wanted ? " skipped" : "");
       row.dataset.idx = i;
@@ -938,6 +951,36 @@ function renderDetailsFiles(tor) {
     if (index < files.length) requestAnimationFrame(appendBatch);
   }
   appendBatch();
+}
+
+function filePriorityValue(index, stat) {
+  const isFirst = currentDetailsLabels.includes(FOCUS_LABEL_PREFIX + index);
+  return isFirst ? "first" : !stat.wanted ? "skip" : stat.priority === 1 ? "high" : stat.priority === -1 ? "low" : "normal";
+}
+
+function updateDetailsFiles(tor) {
+  const stats = tor.fileStats || [];
+  if (!currentDetailsFiles.length || !stats.length) return;
+
+  // Update only elements already on screen. This preserves an open priority
+  // dropdown and avoids recreating thousands of rows every five seconds.
+  fileRowsEl.querySelectorAll(".file-row").forEach((row) => {
+    const index = Number(row.dataset.idx);
+    const file = currentDetailsFiles[index];
+    const stat = stats[index] || { bytesCompleted: 0, wanted: true, priority: 0 };
+    if (!file) return;
+
+    const pct = file.length ? Math.round((stat.bytesCompleted / file.length) * 100) : 0;
+    const fill = row.querySelector(".progress-fill");
+    const label = row.querySelector(".progress-pct");
+    if (fill) fill.style.width = pct + "%";
+    if (label) label.textContent = pct + "%";
+    row.classList.toggle("skipped", !stat.wanted);
+
+    const select = row.querySelector("select[data-idx]");
+    const value = filePriorityValue(index, stat);
+    if (select && document.activeElement !== select && select.value !== value) select.value = value;
+  });
 }
 
 async function setFilePriority(idx, value) {
