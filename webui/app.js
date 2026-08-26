@@ -667,28 +667,38 @@ document.getElementById("categories-save").addEventListener("click", async () =>
 const modalCategoryDelete = document.getElementById("modal-category-delete");
 const categoryDeleteMessage = document.getElementById("category-delete-message");
 let categoryDeleteLabel = null;
+let categoryDeleteTargets = [];
 
-function categoryTorrents(label) {
+function categoryTorrents(label, source = torrents) {
   const key = categoryKey(label);
-  return torrents.filter((tor) => visibleLabelsOf(tor).some((item) => categoryKey(item) === key));
+  return source.filter((tor) => visibleLabelsOf(tor).some((item) => categoryKey(item) === key));
 }
 
-function openCategoryDelete(label) {
-  const targets = categoryTorrents(label);
-  if (!targets.length) {
-    removeFromCategoryCatalog(label);
-    renderCategoryEditor();
-    toast(t("categories_deleted"), "success");
-    return;
+async function openCategoryDelete(label) {
+  try {
+    // The table poll is deliberately lightweight and can be stale. Query the
+    // daemon here, so a category with real assignments never looks empty.
+    const data = await rpc("torrent-get", { fields: ["id", "labels"] });
+    const targets = categoryTorrents(label, data.torrents || []);
+    if (!targets.length) {
+      removeFromCategoryCatalog(label);
+      renderCategoryEditor();
+      toast(t("categories_deleted"), "success");
+      return;
+    }
+    categoryDeleteLabel = label;
+    categoryDeleteTargets = targets;
+    categoryDeleteMessage.textContent = tf("categories_delete_message", label, targets.length);
+    modalCategoryDelete.classList.add("show");
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
   }
-  categoryDeleteLabel = label;
-  categoryDeleteMessage.textContent = tf("categories_delete_message", label, targets.length);
-  modalCategoryDelete.classList.add("show");
 }
 
 function closeCategoryDelete() {
   modalCategoryDelete.classList.remove("show");
   categoryDeleteLabel = null;
+  categoryDeleteTargets = [];
 }
 
 document.getElementById("category-delete-close").addEventListener("click", closeCategoryDelete);
@@ -696,7 +706,7 @@ document.getElementById("category-delete-cancel").addEventListener("click", clos
 modalCategoryDelete.addEventListener("click", (event) => { if (event.target === modalCategoryDelete) closeCategoryDelete(); });
 document.getElementById("category-delete-submit").addEventListener("click", async () => {
   const label = categoryDeleteLabel;
-  const targets = label ? categoryTorrents(label) : [];
+  const targets = categoryDeleteTargets;
   if (!label || !targets.length) { closeCategoryDelete(); return; }
   const key = categoryKey(label);
   const refreshDetails = currentDetailsId != null && targets.some((tor) => tor.id === currentDetailsId);
