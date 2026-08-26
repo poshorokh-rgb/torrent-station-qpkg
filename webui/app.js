@@ -169,6 +169,7 @@ const TABLE_COLUMNS = [
     return `<td><span class="status-pill"><span class="dot ${error ? "error" : meta.dot}"></span>${error ? t("st_error") : meta.label}</span></td>`;
   } },
   { id: "added", label: "col_added", sort: "added", num: true, cell: (tor) => `<td class="num" title="${escapeHtml(fmtDate(tor.addedDate))}">${fmtAgo(tor.addedDate)}</td>` },
+  { id: "added_date", label: "col_added_date", sort: "addedDate", num: true, cell: (tor) => `<td class="num">${escapeHtml(fmtDate(tor.addedDate))}</td>` },
   { id: "down", label: "col_down", sort: "down", num: true, cell: (tor) => `<td class="num ${tor.rateDownload ? "rate-down" : "rate-zero"}">${tor.rateDownload ? fmtRate(tor.rateDownload) : "—"}</td>` },
   { id: "up", label: "col_up", sort: "up", num: true, cell: (tor) => `<td class="num ${tor.rateUpload ? "rate-up" : "rate-zero"}">${tor.rateUpload ? fmtRate(tor.rateUpload) : "—"}</td>` },
   { id: "eta", label: "col_eta", sort: "eta", num: true, cell: (tor) => `<td class="num">${tor.status === 4 ? fmtEta(tor.eta) : "—"}</td>` },
@@ -431,6 +432,7 @@ function sortedFiltered() {
     progress: torrentProgress,
     status: (tor) => tor.status,
     added: (tor) => tor.addedDate,
+    addedDate: (tor) => tor.addedDate,
     down: (tor) => tor.rateDownload,
     up: (tor) => tor.rateUpload,
     eta: (tor) => (tor.eta < 0 ? Infinity : tor.eta),
