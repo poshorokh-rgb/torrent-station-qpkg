@@ -205,9 +205,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   z-index: 10;
 }
 
-.brand { display: flex; align-items: center; gap: 9px; padding-right: 14px; border-right: 1px solid var(--line); height: 28px; }
+.brand { display: flex; align-items: center; gap: 9px; padding-right: 14px; border-right: 1px solid var(--line); height: 34px; }
 .version-badge { padding: 3px 6px; border: 1px solid var(--line); border-radius: 99px; color: var(--text-dim); font-size: 9px; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-.brand-logo { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
+.brand-logo { width: 34px; height: 34px; object-fit: contain; flex: 0 0 auto; }
 .brand .wordmark { font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase; }
 .brand .wordmark span { color: var(--accent); }
 
