@@ -1365,7 +1365,7 @@ function renderDetailsGeneral(tor) {
     [t("d_downloaded"), fmtBytes(tor.downloadedEver)],
     [t("d_uploaded"), fmtBytes(tor.uploadedEver)],
     [t("d_ratio"), fmtRatio(tor.uploadRatio)],
-    [t("d_location"), tor.downloadDir, false, "location"],
+    [t("d_location"), tor.downloadDir],
     [t("d_hash"), tor.hashString, true],
     [t("d_added"), fmtDate(tor.addedDate)],
     [t("d_completed"), tor.doneDate ? fmtDate(tor.doneDate) : "—"],
@@ -1376,10 +1376,7 @@ function renderDetailsGeneral(tor) {
   ];
   if (tor.error && tor.error !== 0) rows.splice(1, 0, [t("d_error"), tor.errorString || t("st_error")]);
 
-  const dl = rows.map(([k, v, mono, kind]) => {
-    if (kind === "location") {
-      return `<dt>${escapeHtml(k)}</dt><dd class="detail-location"><span class="detail-location-path" title="${escapeHtml(String(v))}">${escapeHtml(String(v))}</span><button type="button" class="detail-location-open" data-action="open-location" data-i18n-title="details_open_file_station" title="${escapeHtml(t("details_open_file_station"))}" aria-label="${escapeHtml(t("details_open_file_station"))}"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3.5 7.5A1.5 1.5 0 015 6h5l2 2h7A1.5 1.5 0 0120.5 9.5v8A1.5 1.5 0 0119 19H5a1.5 1.5 0 01-1.5-1.5v-10z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M3.5 10h17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button></dd>`;
-    }
+  const dl = rows.map(([k, v, mono]) => {
     return `<dt>${escapeHtml(k)}</dt><dd${mono ? ' class="mono"' : ""}>${escapeHtml(String(v))}</dd>`;
   }).join("");
 
@@ -1409,10 +1406,6 @@ function renderDetailsGeneral(tor) {
 detailsGeneralEl.addEventListener("click", (event) => {
   if (event.target.closest("[data-action=\"edit-category\"]") && currentDetailsId != null) {
     openCategories([currentDetailsId]);
-    return;
-  }
-  if (event.target.closest("[data-action=\"open-location\"]")) {
-    window.open(`http://${window.location.hostname}:8080/cgi-bin/filemanager.html`, "_blank", "noopener");
   }
 });
 
