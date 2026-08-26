@@ -666,6 +666,7 @@ document.getElementById("categories-save").addEventListener("click", async () =>
 
 const modalCategoryDelete = document.getElementById("modal-category-delete");
 const categoryDeleteMessage = document.getElementById("category-delete-message");
+const categoryDeleteSubmit = document.getElementById("category-delete-submit");
 let categoryDeleteLabel = null;
 let categoryDeleteTargets = [];
 
@@ -675,23 +676,25 @@ function categoryTorrents(label, source = torrents) {
 }
 
 async function openCategoryDelete(label) {
+  categoryDeleteLabel = label;
+  categoryDeleteTargets = [];
+  categoryDeleteMessage.textContent = t("categories_delete_checking");
+  categoryDeleteSubmit.disabled = true;
+  modalCategoryDelete.classList.add("show");
   try {
     // The table poll is deliberately lightweight and can be stale. Query the
     // daemon here, so a category with real assignments never looks empty.
     const data = await rpc("torrent-get", { fields: ["id", "labels"] });
     const targets = categoryTorrents(label, data.torrents || []);
-    if (!targets.length) {
-      removeFromCategoryCatalog(label);
-      renderCategoryEditor();
-      toast(t("categories_deleted"), "success");
-      return;
-    }
+    if (categoryDeleteLabel !== label) return;
     categoryDeleteLabel = label;
     categoryDeleteTargets = targets;
-    categoryDeleteMessage.textContent = tf("categories_delete_message", label, targets.length);
-    modalCategoryDelete.classList.add("show");
+    categoryDeleteMessage.textContent = targets.length
+      ? tf("categories_delete_message", label, targets.length)
+      : tf("categories_delete_empty_message", label);
+    categoryDeleteSubmit.disabled = false;
   } catch (e) {
-    toast(t("toast_error") + e.message, "error");
+    if (categoryDeleteLabel === label) categoryDeleteMessage.textContent = t("toast_error") + e.message;
   }
 }
 
@@ -699,6 +702,7 @@ function closeCategoryDelete() {
   modalCategoryDelete.classList.remove("show");
   categoryDeleteLabel = null;
   categoryDeleteTargets = [];
+  categoryDeleteSubmit.disabled = false;
 }
 
 document.getElementById("category-delete-close").addEventListener("click", closeCategoryDelete);
@@ -707,7 +711,15 @@ modalCategoryDelete.addEventListener("click", (event) => { if (event.target === 
 document.getElementById("category-delete-submit").addEventListener("click", async () => {
   const label = categoryDeleteLabel;
   const targets = categoryDeleteTargets;
-  if (!label || !targets.length) { closeCategoryDelete(); return; }
+  if (!label) { closeCategoryDelete(); return; }
+  if (!targets.length) {
+    removeFromCategoryCatalog(label);
+    categoryDraftLabels = categoryDraftLabels.filter((item) => categoryKey(item) !== categoryKey(label));
+    closeCategoryDelete();
+    toast(t("categories_deleted"), "success");
+    renderCategoryEditor();
+    return;
+  }
   const key = categoryKey(label);
   const refreshDetails = currentDetailsId != null && targets.some((tor) => tor.id === currentDetailsId);
   try {
