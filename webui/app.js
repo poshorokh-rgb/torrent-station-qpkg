@@ -493,6 +493,11 @@ function categoryButton(label, action, active = false) {
   return `<button type="button" class="category-chip${active ? " active" : ""}" data-category-action="${action}" data-category="${escapeHtml(label)}"${action === "choose" ? ` aria-pressed="${active}"` : ""}>${escapeHtml(label)}${action === "remove" ? '<span aria-hidden="true">×</span>' : ""}</button>`;
 }
 
+function categorySearchResult(label) {
+  const active = categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label));
+  return `<span class="category-search-result">${categoryButton(label, "choose", active)}<button type="button" class="category-delete-button" data-category-delete="${escapeHtml(label)}" title="${escapeHtml(t("categories_delete_action"))}" aria-label="${escapeHtml(t("categories_delete_action"))}">×</button></span>`;
+}
+
 function renderCategoryEditor() {
   categoriesSelectedEl.innerHTML = categoryDraftLabels.length
     ? categoryDraftLabels.map((label) => categoryButton(label, "remove")).join("")
@@ -507,7 +512,7 @@ function renderCategoryEditor() {
     !quickKeys.has(categoryKey(label)) && label.toLocaleLowerCase(currentLang).includes(query)
   ) : [];
   categoriesSearchResults.innerHTML = matches.length
-    ? matches.map((label) => categoryButton(label, "choose", categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label)))).join("")
+    ? matches.map(categorySearchResult).join("")
     : query ? `<span class="category-empty">${escapeHtml(t("categories_no_matches"))}</span>` : "";
 }
 
@@ -548,6 +553,11 @@ document.getElementById("categories-close").addEventListener("click", closeCateg
 document.getElementById("categories-cancel").addEventListener("click", closeCategories);
 modalCategories.addEventListener("click", (e) => { if (e.target === modalCategories) closeCategories(); });
 modalCategories.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest("[data-category-delete]");
+  if (deleteButton) {
+    openCategoryDelete(deleteButton.dataset.category);
+    return;
+  }
   const button = event.target.closest("[data-category-action]");
   if (!button) return;
   const label = button.dataset.category;
@@ -586,6 +596,56 @@ document.getElementById("categories-save").addEventListener("click", async () =>
     closeCategories();
     toast(t("categories_saved"), "success");
     poll();
+    if (refreshDetails) fetchDetails();
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  }
+});
+
+const modalCategoryDelete = document.getElementById("modal-category-delete");
+const categoryDeleteMessage = document.getElementById("category-delete-message");
+let categoryDeleteLabel = null;
+
+function categoryTorrents(label) {
+  const key = categoryKey(label);
+  return torrents.filter((tor) => visibleLabelsOf(tor).some((item) => categoryKey(item) === key));
+}
+
+function openCategoryDelete(label) {
+  const targets = categoryTorrents(label);
+  if (!targets.length) {
+    renderCategoryEditor();
+    return;
+  }
+  categoryDeleteLabel = label;
+  categoryDeleteMessage.textContent = tf("categories_delete_message", label, targets.length);
+  modalCategoryDelete.classList.add("show");
+}
+
+function closeCategoryDelete() {
+  modalCategoryDelete.classList.remove("show");
+  categoryDeleteLabel = null;
+}
+
+document.getElementById("category-delete-close").addEventListener("click", closeCategoryDelete);
+document.getElementById("category-delete-cancel").addEventListener("click", closeCategoryDelete);
+modalCategoryDelete.addEventListener("click", (event) => { if (event.target === modalCategoryDelete) closeCategoryDelete(); });
+document.getElementById("category-delete-submit").addEventListener("click", async () => {
+  const label = categoryDeleteLabel;
+  const targets = label ? categoryTorrents(label) : [];
+  if (!label || !targets.length) { closeCategoryDelete(); return; }
+  const key = categoryKey(label);
+  const refreshDetails = currentDetailsId != null && targets.some((tor) => tor.id === currentDetailsId);
+  try {
+    await Promise.all(targets.map((tor) => rpc("torrent-set", {
+      ids: [tor.id],
+      labels: (tor.labels || []).filter((item) => isFocusLabel(item) || categoryKey(item) !== key),
+    })));
+    categoryDraftLabels = categoryDraftLabels.filter((item) => categoryKey(item) !== key);
+    closeCategoryDelete();
+    toast(t("categories_deleted"), "success");
+    await poll();
+    renderCategoryEditor();
     if (refreshDetails) fetchDetails();
   } catch (e) {
     toast(t("toast_error") + e.message, "error");

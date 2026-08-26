@@ -16,7 +16,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="styles.css?v=25">
+<link rel="stylesheet" href="styles.css?v=26">
 </head>
 <body>
 <div class="grain"></div>
@@ -228,6 +228,23 @@
   </div>
 </div>
 
+<!-- ============ CATEGORY DELETE CONFIRMATION ============ -->
+<div class="modal-overlay" id="modal-category-delete" role="dialog" aria-modal="true" aria-labelledby="category-delete-title">
+  <div class="modal modal-narrow">
+    <div class="modal-head">
+      <h2 id="category-delete-title" data-i18n="categories_delete_title">Удалить категорию?</h2>
+      <button type="button" class="modal-close" id="category-delete-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="remove-msg" id="category-delete-message"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="mbtn" id="category-delete-cancel" data-i18n="modal_cancel">Отмена</button>
+      <button class="mbtn danger" id="category-delete-submit" data-i18n="categories_delete_confirm">Удалить категорию</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ DETAILS PANEL (bottom-docked) ============ -->
 <section class="details-panel" id="modal-details" role="dialog" aria-modal="true" aria-labelledby="details-title">
   <div class="modal-head">
@@ -392,8 +409,8 @@
 <div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
 <script src="theme.js?v=23"></script>
-<script src="i18n.js?v=28"></script>
+<script src="i18n.js?v=29"></script>
 <script src="version.js?v=1"></script>
-<script src="app.js?v=31"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>

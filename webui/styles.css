@@ -347,6 +347,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .category-empty { color: var(--text-faint); font-size: 12px; }
 .category-search-field { margin-bottom: 16px; }
 .category-search-results { min-height: 0; margin-top: 9px; }
+.category-search-result { display: inline-flex; align-items: center; gap: 3px; }
+.category-delete-button {
+  width: 24px; height: 24px; border: 1px solid transparent; border-radius: 50%; background: transparent;
+  color: var(--text-faint); font-size: 17px; line-height: 20px; cursor: pointer;
+}
+.category-delete-button:hover { border-color: var(--red); background: var(--red-dim); color: var(--red); }
 .category-create-row { display: flex; gap: 8px; }
 .category-create-row input { min-width: 0; flex: 1; }
 .category-create-row .mbtn { flex-shrink: 0; }
