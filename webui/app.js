@@ -434,7 +434,7 @@ function updateToolbarState() {
 document.getElementById("btn-resume").addEventListener("click", () => act("torrent-start"));
 document.getElementById("btn-pause").addEventListener("click", () => act("torrent-stop"));
 document.getElementById("btn-remove").addEventListener("click", () => openRemoveConfirm(false));
-document.getElementById("btn-categories").addEventListener("click", openCategories);
+document.getElementById("btn-categories").addEventListener("click", () => openCategories());
 
 async function act(method, extra = {}) {
   if (!selected.size) return;
@@ -454,8 +454,8 @@ const categoriesInput = document.getElementById("categories-input");
 const categoriesClear = document.getElementById("categories-clear");
 let categoryTargetIds = [];
 
-function openCategories(targetIds = Array.from(selected)) {
-  const ids = [...new Set(targetIds)];
+function openCategories(targetIds) {
+  const ids = Array.isArray(targetIds) ? [...new Set(targetIds)] : Array.from(selected);
   if (!ids.length) { toast(t("categories_select_first"), "error"); return; }
   const picked = torrents.filter((tor) => ids.includes(tor.id));
   if (!picked.length) { toast(t("categories_select_first"), "error"); return; }
