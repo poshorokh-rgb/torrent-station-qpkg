@@ -713,7 +713,7 @@ td.name-cell .fname {
 .detail-grid dd { color: var(--text-hi); word-break: break-word; }
 .detail-grid dd.mono { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-mid); }
 .detail-category { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.detail-category-labels { display: flex; flex: 1; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.detail-category-labels { display: flex; flex: 0 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .detail-category-empty { color: var(--text-dim); }
 .detail-category-edit {
   flex-shrink: 0; padding: 4px 8px; border: 1px solid var(--line-bright); border-radius: var(--radius);
