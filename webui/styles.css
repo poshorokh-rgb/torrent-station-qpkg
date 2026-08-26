@@ -798,6 +798,14 @@ td.name-cell .fname {
   background: var(--bg-raised); color: var(--accent); font-size: 10.5px; font-weight: 700; cursor: pointer;
 }
 .detail-category-edit:hover { border-color: var(--accent); background: var(--accent-glow); }
+.detail-location { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.detail-location-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-location-open {
+  width: 27px; height: 27px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  border: 1px solid var(--line-bright); border-radius: var(--radius); background: var(--bg-raised); color: var(--accent); cursor: pointer;
+}
+.detail-location-open:hover { border-color: var(--accent); background: var(--accent-glow); color: var(--text-hi); }
+.detail-location-open svg { width: 14px; height: 14px; }
 
 .detail-section-title {
   font-family: var(--font-display); font-weight: 700; font-size: 11px;
