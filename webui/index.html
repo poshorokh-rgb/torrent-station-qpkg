@@ -16,7 +16,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="styles.css?v=24">
+<link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body>
 <div class="grain"></div>
@@ -200,13 +200,26 @@
       <button type="button" class="modal-close" id="categories-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
     <div class="modal-body">
-      <p class="category-target" id="categories-target"></p>
-      <div class="field">
-        <label for="categories-input" data-i18n="categories_labels">Категории / метки</label>
-        <input id="categories-input" type="text" maxlength="120" list="category-suggestions" data-i18n-placeholder="add_category_ph" placeholder="Например: Фильмы, 4K">
-        <div class="field-hint" data-i18n="categories_replace_note">Список полностью заменит текущие категории выбранных торрентов.</div>
+      <div class="category-section">
+        <div class="category-section-label" data-i18n="categories_selected">Выбрано</div>
+        <div class="category-chips" id="categories-selected"></div>
       </div>
-      <label class="checkbox-row"><input type="checkbox" id="categories-clear"> <span data-i18n="categories_clear">Убрать все категории</span></label>
+      <div class="category-section">
+        <div class="category-section-label" data-i18n="categories_quick">Быстрый выбор</div>
+        <div class="category-chips" id="categories-quick"></div>
+      </div>
+      <div class="field category-search-field">
+        <label for="categories-search" data-i18n="categories_search">Поиск категорий</label>
+        <input id="categories-search" type="search" maxlength="120" data-i18n-placeholder="categories_search_ph" placeholder="Начните вводить название">
+        <div class="category-chips category-search-results" id="categories-search-results"></div>
+      </div>
+      <div class="field category-new-field">
+        <label for="categories-new" data-i18n="categories_new">Новая категория</label>
+        <div class="category-create-row">
+          <input id="categories-new" type="text" maxlength="120" data-i18n-placeholder="categories_new_ph" placeholder="Например: Сериалы">
+          <button type="button" class="mbtn tiny" id="categories-add" data-i18n="categories_add">Добавить</button>
+        </div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="mbtn" id="categories-cancel" data-i18n="modal_cancel">Отмена</button>
@@ -379,8 +392,8 @@
 <div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
 <script src="theme.js?v=23"></script>
-<script src="i18n.js?v=27"></script>
+<script src="i18n.js?v=28"></script>
 <script src="version.js?v=1"></script>
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>

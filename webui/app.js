@@ -450,9 +450,74 @@ async function act(method, extra = {}) {
 /* Categories are Transmission labels. Editing them here writes directly to
    the selected torrents, so the result is shared with other clients too. */
 const modalCategories = document.getElementById("modal-categories");
-const categoriesInput = document.getElementById("categories-input");
-const categoriesClear = document.getElementById("categories-clear");
+const categoriesTitle = document.getElementById("categories-dialog-title");
+const categoriesSelectedEl = document.getElementById("categories-selected");
+const categoriesQuickEl = document.getElementById("categories-quick");
+const categoriesSearch = document.getElementById("categories-search");
+const categoriesSearchResults = document.getElementById("categories-search-results");
+const categoriesNew = document.getElementById("categories-new");
 let categoryTargetIds = [];
+let categoryDraftLabels = [];
+
+const QUICK_CATEGORIES = ["Сериалы", "Фильмы", "Документалки", "4K"];
+
+function categoryKey(label) {
+  return String(label).trim().toLocaleLowerCase(currentLang);
+}
+
+function normalizeCategory(label) {
+  return String(label).replace(/\s+/g, " ").trim();
+}
+
+function uniqueCategories(labels) {
+  const seen = new Set();
+  return labels.map(normalizeCategory).filter((label) => {
+    const key = categoryKey(label);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function visibleLabelsOf(tor) {
+  return (tor.labels || []).filter((label) => !isFocusLabel(label));
+}
+
+function knownCategories() {
+  const labels = [...QUICK_CATEGORIES];
+  torrents.forEach((tor) => labels.push(...visibleLabelsOf(tor)));
+  return uniqueCategories(labels).sort((a, b) => a.localeCompare(b, currentLang));
+}
+
+function categoryButton(label, action, active = false) {
+  return `<button type="button" class="category-chip${active ? " active" : ""}" data-category-action="${action}" data-category="${escapeHtml(label)}"${action === "choose" ? ` aria-pressed="${active}"` : ""}>${escapeHtml(label)}${action === "remove" ? '<span aria-hidden="true">×</span>' : ""}</button>`;
+}
+
+function renderCategoryEditor() {
+  categoriesSelectedEl.innerHTML = categoryDraftLabels.length
+    ? categoryDraftLabels.map((label) => categoryButton(label, "remove")).join("")
+    : `<span class="category-empty">${escapeHtml(t("categories_empty"))}</span>`;
+  categoriesQuickEl.innerHTML = QUICK_CATEGORIES.map((label) =>
+    categoryButton(label, "choose", categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label)))
+  ).join("");
+
+  const query = normalizeCategory(categoriesSearch.value).toLocaleLowerCase(currentLang);
+  const quickKeys = new Set(QUICK_CATEGORIES.map(categoryKey));
+  const matches = query ? knownCategories().filter((label) =>
+    !quickKeys.has(categoryKey(label)) && label.toLocaleLowerCase(currentLang).includes(query)
+  ) : [];
+  categoriesSearchResults.innerHTML = matches.length
+    ? matches.map((label) => categoryButton(label, "choose", categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label)))).join("")
+    : query ? `<span class="category-empty">${escapeHtml(t("categories_no_matches"))}</span>` : "";
+}
+
+function addCategoryToDraft(value) {
+  const label = normalizeCategory(value);
+  if (!label) return;
+  if (/\r|\n/.test(label)) { toast(t("toast_invalid_category"), "error"); return; }
+  categoryDraftLabels = uniqueCategories([...categoryDraftLabels, label]);
+  renderCategoryEditor();
+}
 
 function openCategories(targetIds) {
   const ids = Array.isArray(targetIds) ? [...new Set(targetIds)] : Array.from(selected);
@@ -461,32 +526,52 @@ function openCategories(targetIds) {
   if (!picked.length) { toast(t("categories_select_first"), "error"); return; }
   categoryTargetIds = picked.map((tor) => tor.id);
   const first = picked[0] || { labels: [] };
-  const labelsOf = (tor) => (tor.labels || []).filter((label) => !isFocusLabel(label));
-  const sameLabels = picked.every((tor) => JSON.stringify(labelsOf(tor)) === JSON.stringify(labelsOf(first)));
-  categoriesInput.value = sameLabels ? labelsOf(first).join(", ") : "";
-  categoriesInput.placeholder = sameLabels ? t("add_category_ph") : t("categories_mixed_ph");
-  categoriesClear.checked = false;
-  categoriesInput.disabled = false;
-  document.getElementById("categories-target").textContent = tf("categories_target", categoryTargetIds.length);
+  const sameLabels = picked.every((tor) => JSON.stringify(visibleLabelsOf(tor)) === JSON.stringify(visibleLabelsOf(first)));
+  categoryDraftLabels = sameLabels ? uniqueCategories(visibleLabelsOf(first)) : [];
+  categoriesSearch.value = "";
+  categoriesNew.value = "";
+  categoriesTitle.textContent = picked.length === 1
+    ? tf("categories_for", first.name)
+    : tf("categories_for_many", picked.length);
+  renderCategoryEditor();
   modalCategories.classList.add("show");
-  setTimeout(() => categoriesInput.focus(), 50);
+  setTimeout(() => categoriesSearch.focus(), 50);
 }
 function closeCategories() {
   modalCategories.classList.remove("show");
   categoryTargetIds = [];
+  categoryDraftLabels = [];
+  categoriesTitle.textContent = t("categories_title");
 }
 
 document.getElementById("categories-close").addEventListener("click", closeCategories);
 document.getElementById("categories-cancel").addEventListener("click", closeCategories);
 modalCategories.addEventListener("click", (e) => { if (e.target === modalCategories) closeCategories(); });
-categoriesClear.addEventListener("change", () => {
-  categoriesInput.disabled = categoriesClear.checked;
-  if (categoriesClear.checked) categoriesInput.value = "";
+modalCategories.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-category-action]");
+  if (!button) return;
+  const label = button.dataset.category;
+  const selectedAlready = categoryDraftLabels.some((item) => categoryKey(item) === categoryKey(label));
+  if (button.dataset.categoryAction === "remove" || selectedAlready) {
+    categoryDraftLabels = categoryDraftLabels.filter((item) => categoryKey(item) !== categoryKey(label));
+  } else {
+    categoryDraftLabels = uniqueCategories([...categoryDraftLabels, label]);
+  }
+  renderCategoryEditor();
+});
+categoriesSearch.addEventListener("input", renderCategoryEditor);
+document.getElementById("categories-add").addEventListener("click", () => {
+  addCategoryToDraft(categoriesNew.value);
+  categoriesNew.value = "";
+});
+categoriesNew.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    document.getElementById("categories-add").click();
+  }
 });
 document.getElementById("categories-save").addEventListener("click", async () => {
-  const source = categoriesInput.value.trim();
-  if (/\r|\n/.test(source)) { toast(t("toast_invalid_category"), "error"); return; }
-  const labels = categoriesClear.checked ? [] : labelsFromInput(source);
+  const labels = categoryDraftLabels;
   const targets = torrents.filter((tor) => categoryTargetIds.includes(tor.id));
   if (!targets.length) { closeCategories(); return; }
   const refreshDetails = currentDetailsId != null && categoryTargetIds.includes(currentDetailsId);
@@ -693,7 +778,7 @@ function fileToBase64(file) {
 }
 
 function labelsFromInput(value) {
-  return [...new Set(value.split(",").map((x) => x.trim()).filter(Boolean))];
+  return uniqueCategories(value.split(","));
 }
 
 document.getElementById("add-ratio-enabled").addEventListener("change", () => {
