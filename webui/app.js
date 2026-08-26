@@ -251,7 +251,9 @@ const columnsList = document.getElementById("columns-list");
 function renderTableHeader() {
   els.head.innerHTML = visibleTableColumns().map((column) => `
     <th data-sort="${column.sort}" data-column-id="${column.id}"${column.num ? ' class="num"' : ""}>
-      <span>${escapeHtml(t(column.label))}</span> <span class="arrow"></span>
+      ${column.id === "peers"
+        ? `<span class="peers-sort-label"><span data-peer-sort="seeds">${escapeHtml(t("col_seeds_short"))}</span><span class="peers-sort-separator">/</span><span data-peer-sort="peers">${escapeHtml(t("col_peers_short"))}</span></span>`
+        : `<span>${escapeHtml(t(column.label))}</span>`} <span class="arrow"></span>
       <span class="column-resizer" data-column-resize="${column.id}" aria-hidden="true"></span>
     </th>`).join("");
   renderTableGeometry();
@@ -464,6 +466,7 @@ function sortedFiltered() {
     eta: (tor) => (tor.eta < 0 ? Infinity : tor.eta),
     ratio: (tor) => tor.uploadRatio,
     peers: (tor) => tor.peersConnected,
+    seeds: seedsOf,
     downloaded: (tor) => tor.downloadedEver,
     uploaded: (tor) => tor.uploadedEver,
     remaining: (tor) => tor.leftUntilDone,
@@ -911,9 +914,13 @@ document.getElementById("remove-submit").addEventListener("click", () => {
    ========================================================================== */
 function markSortIndicator() {
   document.querySelectorAll("th[data-sort]").forEach((h) => {
-    const active = h.dataset.sort === sortKey;
+    const isPeersHeader = h.dataset.sort === "peers";
+    const active = h.dataset.sort === sortKey || (isPeersHeader && sortKey === "seeds");
     h.classList.toggle("sorted", active);
     h.querySelector(".arrow").textContent = active ? (sortDir === 1 ? "↑" : "↓") : "";
+    h.querySelectorAll("[data-peer-sort]").forEach((part) => {
+      part.classList.toggle("active", isPeersHeader && part.dataset.peerSort === sortKey);
+    });
   });
 }
 
@@ -925,7 +932,10 @@ els.head.addEventListener("click", (event) => {
   const header = event.target.closest("th[data-sort]");
   if (!header) return;
   const key = header.dataset.sort;
-  if (sortKey === key) sortDir *= -1;
+  if (key === "peers") {
+    sortKey = sortKey === "seeds" ? "peers" : "seeds";
+    sortDir = -1;
+  } else if (sortKey === key) sortDir *= -1;
   else { sortKey = key; sortDir = 1; }
   markSortIndicator();
   renderTable();
