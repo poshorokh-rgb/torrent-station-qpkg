@@ -16,7 +16,7 @@
   } catch (e) {}
 })();
 </script>
-<link rel="stylesheet" href="styles.css?v=36">
+<link rel="stylesheet" href="styles.css?v=37">
 </head>
 <body>
 <div class="grain"></div>
@@ -48,6 +48,10 @@
       <button type="button" class="tbtn" id="btn-categories">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 5.5A1.5 1.5 0 015.5 4h5l2 2h6A1.5 1.5 0 0120 7.5v11a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18.5v-13z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         <span data-i18n="tb_categories">Категории</span>
+      </button>
+      <button type="button" class="tbtn standby" id="btn-standby" title="Остановить все передачи" aria-pressed="false">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v8" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M7.1 5.8a8 8 0 109.8 0" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+        <span id="standby-label">Standby</span>
       </button>
     </div>
     <div class="topbar-spacer"></div>
@@ -415,8 +419,8 @@
 <div class="toast-wrap" id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
 <script src="theme.js?v=23"></script>
-<script src="i18n.js?v=38"></script>
+<script src="i18n.js?v=39"></script>
 <script src="version.js?v=1"></script>
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 </body>
 </html>

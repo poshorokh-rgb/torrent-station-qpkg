@@ -152,12 +152,21 @@ const FIELDS = [
   "isPrivate", "trackerStats", "labels",
 ];
 
+// Internal markers share one reserved namespace, so they never appear as
+// user categories. Unlike Focus, Standby must survive a page reload: the
+// marker records exactly which torrents should resume later.
+const INTERNAL_LABEL_PREFIX = "__torrentstation_";
+const FOCUS_LABEL_PREFIX = "__torrentstation_focus_";
+const STANDBY_LABEL = "__torrentstation_standby";
+const isInternalLabel = (label) => String(label).startsWith(INTERNAL_LABEL_PREFIX);
+const isFocusLabel = (label) => String(label).startsWith(FOCUS_LABEL_PREFIX);
+
 const TABLE_COLUMNS_KEY = "tq_table_columns_v1";
 const TABLE_COLUMNS = [
   { id: "name", label: "col_name", sort: "name", fixed: true, defaultWidth: 320, minWidth: 180, cell: (tor) => {
     const error = tor.error && tor.error !== 0;
     const title = error ? ` title="${escapeHtml(tor.errorString || t("st_error"))}"` : "";
-    const labels = (tor.labels || []).filter((label) => !isFocusLabel(label));
+    const labels = (tor.labels || []).filter((label) => !isInternalLabel(label));
     return `<td class="name-cell"${title}><div class="fname">${escapeHtml(tor.name)}</div>${labels.map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")}</td>`;
   } },
   { id: "size", label: "col_size", sort: "size", num: true, defaultWidth: 92, minWidth: 72, cell: (tor) => `<td class="num">${fmtBytes(tor.totalSize)}</td>` },
@@ -314,6 +323,7 @@ async function poll() {
       rpc("session-stats"),
     ]);
     torrents = tArgs.torrents;
+    updateStandbyButton();
     setConn(true);
     renderStats(stats);
     renderSidebarCounts();
@@ -357,6 +367,7 @@ function setConn(ok) {
 
 /* Re-render everything with the new language, using last-known data (no RPC round-trip) */
 function onLangChanged() {
+  updateStandbyButton();
   if (lastStats) renderStats(lastStats);
   if (lastFreeBytes != null) els.freeSpace.querySelector(".count").textContent = fmtBytes(lastFreeBytes);
   if (torrents.length || document.getElementById("app").classList.contains("active")) {
@@ -411,7 +422,7 @@ function renderLabelFilters() {
   const counts = new Map();
   let uncategorized = 0;
   for (const tor of torrents) {
-    const labels = (Array.isArray(tor.labels) ? tor.labels : []).filter((label) => !isFocusLabel(label));
+    const labels = (Array.isArray(tor.labels) ? tor.labels : []).filter((label) => !isInternalLabel(label));
     if (!labels.length) uncategorized++;
     for (const label of labels) counts.set(label, (counts.get(label) || 0) + 1);
   }
@@ -433,7 +444,7 @@ function renderLabelFilters() {
    ========================================================================== */
 function matchesFilter(tor) {
   if (currentLabelFilter !== null) {
-    const labels = (Array.isArray(tor.labels) ? tor.labels : []).filter((label) => !isFocusLabel(label));
+    const labels = (Array.isArray(tor.labels) ? tor.labels : []).filter((label) => !isInternalLabel(label));
     if (currentLabelFilter ? !labels.includes(currentLabelFilter) : labels.length) return false;
   }
   switch (currentFilter) {
@@ -577,6 +588,58 @@ document.getElementById("btn-pause").addEventListener("click", () => act("torren
 document.getElementById("btn-remove").addEventListener("click", () => openRemoveConfirm(false));
 document.getElementById("btn-categories").addEventListener("click", () => openCategories());
 
+const standbyButton = document.getElementById("btn-standby");
+const standbyLabel = document.getElementById("standby-label");
+
+function standbyTorrents() {
+  return torrents.filter((tor) => (tor.labels || []).includes(STANDBY_LABEL));
+}
+
+function updateStandbyButton() {
+  const marked = standbyTorrents();
+  const enabled = marked.length > 0;
+  standbyButton.classList.toggle("active", enabled);
+  standbyButton.setAttribute("aria-pressed", String(enabled));
+  standbyLabel.textContent = t(enabled ? "tb_resume_all" : "tb_standby");
+  standbyButton.title = t(enabled ? "standby_resume_title" : "standby_title");
+  standbyButton.disabled = !enabled && !torrents.some((tor) => tor.status !== 0);
+}
+
+async function toggleStandby() {
+  const remembered = standbyTorrents();
+  standbyButton.disabled = true;
+  try {
+    if (remembered.length) {
+      const ids = remembered.map((tor) => tor.id);
+      // Start first: if the daemon rejects the operation, the marker remains
+      // and the user can retry Resume without losing the saved selection.
+      await rpc("torrent-start", { ids });
+      await Promise.all(remembered.map((tor) => rpc("torrent-set", {
+        ids: [tor.id],
+        labels: (tor.labels || []).filter((label) => label !== STANDBY_LABEL),
+      })));
+      toast(t("toast_standby_resumed"), "success");
+    } else {
+      // Include queued/checking torrents too. Otherwise a queued transfer
+      // could begin after Standby is enabled and still use the network.
+      const active = torrents.filter((tor) => tor.status !== 0);
+      if (!active.length) return;
+      await Promise.all(active.map((tor) => rpc("torrent-set", {
+        ids: [tor.id],
+        labels: [...(tor.labels || []).filter((label) => label !== STANDBY_LABEL), STANDBY_LABEL],
+      })));
+      await rpc("torrent-stop", { ids: active.map((tor) => tor.id) });
+      toast(t("toast_standby"), "success");
+    }
+  } catch (e) {
+    toast(t("toast_error") + e.message, "error");
+  } finally {
+    await poll();
+  }
+}
+
+standbyButton.addEventListener("click", toggleStandby);
+
 async function act(method, extra = {}) {
   if (!selected.size) return;
   try {
@@ -652,7 +715,7 @@ function removeFromCategoryCatalog(label) {
 }
 
 function visibleLabelsOf(tor) {
-  return (tor.labels || []).filter((label) => !isFocusLabel(label));
+  return (tor.labels || []).filter((label) => !isInternalLabel(label));
 }
 
 function knownCategories() {
@@ -789,12 +852,12 @@ document.getElementById("categories-save").addEventListener("click", async () =>
   if (!targets.length) { closeCategories(); return; }
   const refreshDetails = currentDetailsId != null && categoryTargetIds.includes(currentDetailsId);
   try {
-    // Focus is represented by an internal label. Preserve it while changing
-    // user-visible categories, otherwise a category edit could prevent the
-    // monitor from restoring temporarily skipped files.
+    // Focus and Standby use internal labels. Preserve them while changing
+    // user-visible categories, otherwise a category edit could prevent
+    // recovery or Resume from working.
     await Promise.all(targets.map((tor) => rpc("torrent-set", {
       ids: [tor.id],
-      labels: [...labels, ...(tor.labels || []).filter(isFocusLabel)],
+      labels: [...labels, ...(tor.labels || []).filter(isInternalLabel)],
     })));
     closeCategories();
     toast(t("categories_saved"), "success");
@@ -866,7 +929,7 @@ document.getElementById("category-delete-submit").addEventListener("click", asyn
   try {
     await Promise.all(targets.map((tor) => rpc("torrent-set", {
       ids: [tor.id],
-      labels: (tor.labels || []).filter((item) => isFocusLabel(item) || categoryKey(item) !== key),
+      labels: (tor.labels || []).filter((item) => isInternalLabel(item) || categoryKey(item) !== key),
     })));
     removeFromCategoryCatalog(label);
     categoryDraftLabels = categoryDraftLabels.filter((item) => categoryKey(item) !== key);
@@ -1195,7 +1258,9 @@ document.getElementById("modal-submit").addEventListener("click", async () => {
 });
 
 async function addTorrent(source, options) {
-  const args = { ...source, paused: options.paused };
+  // A torrent added during Standby stays paused. It is intentionally not
+  // marked for Resume: it was not active when Standby was enabled.
+  const args = { ...source, paused: options.paused || standbyTorrents().length > 0 };
   if (options.labels.length) args.labels = options.labels;
   if (options.downloadDir) args["download-dir"] = options.downloadDir;
   const result = await rpc("torrent-add", args);
@@ -1293,8 +1358,6 @@ let currentDetailsFileCount = 0;
 let currentDetailsLabels = [];
 let currentDetailsFiles = [];
 let detailsRenderGeneration = 0;
-const FOCUS_LABEL_PREFIX = "__torrentstation_focus_";
-const isFocusLabel = (label) => label.startsWith(FOCUS_LABEL_PREFIX);
 
 function openDetails(id) {
   if (id == null) return;
@@ -1398,7 +1461,7 @@ function renderDetailsGeneral(tor) {
     return `<dt>${escapeHtml(k)}</dt><dd${mono ? ' class="mono"' : ""}>${escapeHtml(String(v))}</dd>`;
   }).join("");
 
-  const labels = (tor.labels || []).filter((label) => !isFocusLabel(label));
+  const labels = (tor.labels || []).filter((label) => !isInternalLabel(label));
   const categoryValue = labels.length
     ? labels.map((label) => `<span class="label-chip">${escapeHtml(label)}</span>`).join("")
     : `<span class="detail-category-empty">${escapeHtml(t("sb_uncategorized"))}</span>`;
